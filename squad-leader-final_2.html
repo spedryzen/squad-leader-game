@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Squad Leader: Vietnam</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Saira+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --jungle-dark: #1a2b1a;
+            --jungle-mid: #2d4a2d;
+            --earth-brown: #5c4a3a;
+            --dust-tan: #d4c4a8;
+            --blood-red: #8b2e2e;
+            --radio-green: #4a7c59;
+            --smoke-gray: #9a9a8a;
+            --warning-yellow: #e8d174;
+        }
+
+        body {
+            font-family: 'Courier Prime', monospace;
+            background: linear-gradient(135deg, var(--jungle-dark) 0%, var(--earth-brown) 100%);
+            color: var(--dust-tan);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.03) 2px,
+                    rgba(0, 0, 0, 0.03) 4px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #root {
+            position: relative;
+            z-index: 2;
+        }
+
+        .game-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            animation: fadeIn 1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 20px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 3px solid var(--earth-brown);
+            border-left: 8px solid var(--blood-red);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .header::before {
+            content: '★ ★ ★';
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--warning-yellow);
+            font-size: 12px;
+            letter-spacing: 8px;
+        }
+
+        .title {
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: clamp(2rem, 8vw, 4rem);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--warning-yellow);
+            text-shadow: 3px 3px 0 var(--blood-red), 6px 6px 20px rgba(0, 0, 0, 0.7);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-family: 'Courier Prime', monospace;
+            font-size: 14px;
+            color: var(--smoke-gray);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .faction-select {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+            animation: slideUp 0.8s ease-out 0.3s both;
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .faction-card {
+            background: rgba(0, 0, 0, 0.5);
+            border: 3px solid var(--earth-brown);
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .faction-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .faction-card:hover::before {
+            left: 100%;
+        }
+
+        .faction-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--warning-yellow);
+            box-shadow: 0 10px 30px rgba(232, 209, 116, 0.3);
+        }
+
+        .faction-card.us {
+            border-left: 8px solid #3c5a99;
+        }
+
+        .faction-card.nva {
+            border-left: 8px solid #da251d;
+        }
+
+        .faction-title {
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            color: var(--warning-yellow);
+        }
+
+        .faction-description {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--dust-tan);
+        }
+
+        .story-container {
+            background: rgba(0, 0, 0, 0.6);
+            border: 3px solid var(--earth-brown);
+            border-left: 8px solid var(--radio-green);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.6s ease-out both;
+        }
+
+        .location-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--earth-brown);
+        }
+
+        .location {
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--warning-yellow);
+            letter-spacing: 2px;
+        }
+
+        .squad-status {
+            font-size: 12px;
+            color: var(--radio-green);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .narrative {
+            font-size: 15px;
+            line-height: 1.9;
+            margin-bottom: 25px;
+            color: var(--dust-tan);
+            animation: typeIn 0.8s ease-out 0.2s both;
+        }
+
+        @keyframes typeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .choice-button {
+            background: linear-gradient(135deg, var(--jungle-mid) 0%, var(--earth-brown) 100%);
+            border: 2px solid var(--earth-brown);
+            padding: 18px 25px;
+            color: var(--dust-tan);
+            font-family: 'Courier Prime', monospace;
+            font-size: 14px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .choice-button::before {
+            content: '▸';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: var(--warning-yellow);
+            transition: left 0.3s;
+        }
+
+        .choice-button:hover::before {
+            left: 10px;
+        }
+
+        .choice-button:hover {
+            background: linear-gradient(135deg, var(--radio-green) 0%, var(--jungle-mid) 100%);
+            border-color: var(--warning-yellow);
+            transform: translateX(10px);
+            padding-left: 40px;
+        }
+
+        .choice-button:active {
+            transform: translateX(10px) scale(0.98);
+        }
+
+        .squad-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid var(--earth-brown);
+        }
+
+        .stat {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px 15px;
+            border-left: 3px solid var(--radio-green);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--smoke-gray);
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--warning-yellow);
+        }
+
+        .reset-button {
+            background: var(--blood-red);
+            border: 2px solid var(--earth-brown);
+            color: var(--dust-tan);
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 12px 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 2px;
+            margin-top: 20px;
+        }
+
+        .donate-section {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid var(--earth-brown);
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .donate-text {
+            font-size: 12px;
+            color: var(--dust-tan);
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .donate-button {
+            background: var(--radio-green);
+            border: 2px solid var(--earth-brown);
+            color: var(--dust-tan);
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 12px 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 2px;
+            width: 100%;
+        }
+
+        .donate-button:hover {
+            background: var(--warning-yellow);
+            color: var(--jungle-dark);
+            transform: scale(1.05);
+        }
+
+        .reset-button:hover {
+            background: var(--warning-yellow);
+            color: var(--jungle-dark);
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .faction-select {
+                grid-template-columns: 1fr;
+            }
+
+            .title {
+                font-size: 2.5rem;
+            }
+
+            .story-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const gameData = {
+            us: {
+                start: {
+                    location: "Hill 881 South, Khe Sanh",
+                    narrative: "Your squad is dug in on Hill 881 South, overlooking the valley. Intelligence reports NVA movement in the treeline below. Your men are tired from three days of patrol, but alert. The morning fog is beginning to lift. Radio crackles with static from Firebase Alpha requesting a status update.",
+                    squadSize: 8,
+                    morale: "Steady",
+                    supplies: "Adequate",
+                    choices: [
+                        { text: "Request artillery support on the treeline before investigating", next: "artillery" },
+                        { text: "Send a three-man reconnaissance patrol to investigate", next: "recon" },
+                        { text: "Hold position and observe through binoculars", next: "observe" },
+                        { text: "Call in helicopter extraction - something feels wrong", next: "extract" }
+                    ]
+                },
+                artillery: {
+                    location: "Hill 881 - Fire Support Coordination",
+                    narrative: "You call for artillery. The fire direction center confirms: 'Shot out.' Seconds later, you hear the incoming rounds. The shells impact the treeline with devastating effect. Secondary explosions - you hit an ammunition cache. As smoke clears, you see survivors retreating, but also spotting your position. Enemy mortar crews are now ranging in on your coordinates. Return fire incoming.",
+                    squadSize: 8,
+                    morale: "Confident",
+                    supplies: "Adequate",
+                    choices: [
+                        { text: "Call counter-battery fire on their mortars", next: "counterbattery" },
+                        { text: "Immediately displace to alternate position", next: "displacement" },
+                        { text: "Request smoke screen and withdrawal", next: "smoke_withdrawal" },
+                        { text: "Call in air strike on enemy mortar positions", next: "mortar_airstrike" }
+                    ]
+                },
+                counterbattery: {
+                    location: "Counter-Battery Duel",
+                    narrative: "You spot the enemy mortar flashes and call immediate counter-battery fire. It becomes an artillery duel. Shells are falling on both positions. One enemy round lands close - two men are wounded by shrapnel. But your artillery is more accurate. The enemy mortar position is destroyed. You've won the duel but at a cost. Medevac is inbound.",
+                    squadSize: 6,
+                    morale: "Determined",
+                    supplies: "Low",
+                    choices: []
+                },
+                displacement: {
+                    location: "Tactical Displacement",
+                    narrative: "You order immediate displacement. The squad moves 200 meters to prepared alternate positions just as enemy mortars impact your former location. The explosions are massive - had you stayed, casualties would have been heavy. From the new position, you direct artillery that destroys the enemy mortars. Tactical flexibility saves lives. Well done.",
+                    squadSize: 8,
+                    morale: "Professional",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                smoke_withdrawal: {
+                    location: "Covered Withdrawal",
+                    narrative: "Artillery smoke rounds create a dense screen. Your squad withdraws under cover while enemy mortars pound empty positions. You reach safety with zero casualties. Sometimes the best combat is the one you don't have to fight. Your use of smoke and tactical withdrawal prevented losses while the enemy wasted ammunition.",
+                    squadSize: 8,
+                    morale: "Tactical",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                mortar_airstrike: {
+                    location: "Close Air Support Mission",
+                    narrative: "F-4 Phantoms arrive on station within minutes. You mark the enemy mortar positions with smoke. The jets roll in with 500-pound bombs. The explosions are spectacular. The enemy mortar positions are obliterated. The Phantoms make a second pass with napalm for good measure. Air power saves the day again.",
+                    squadSize: 8,
+                    morale: "Confident",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                recon: {
+                    location: "Valley Floor, Khe Sanh",
+                    narrative: "Your three-man team moves quietly through elephant grass. They discover fresh bootprints and an abandoned NVA supply cache - rice, ammunition, medical supplies. But this is too easy. Your point man signals: movement, 50 meters, multiple contacts. They're walking into an ambush position. You have seconds to decide.",
+                    squadSize: 8,
+                    morale: "Cautious",
+                    supplies: "Adequate",
+                    choices: [
+                        { text: "Radio them to take cover and lay suppressive fire", next: "suppressive" },
+                        { text: "Send the rest of the squad to flank the enemy position", next: "flank" },
+                        { text: "Order immediate retreat using smoke grenades", next: "smoke_retreat" },
+                        { text: "Call in napalm strike danger close", next: "napalm" }
+                    ]
+                },
+                observe: {
+                    location: "Hill 881 Observation Post - Day 1",
+                    narrative: "Through binoculars, you watch the treeline. Hour one: nothing. Hour two: movement. You count at least 40 NVA soldiers establishing a staging area. They're building bunkers, positioning weapons, setting up what looks like a mortar pit. This is bigger than a patrol - this is preparation for a major assault. You've maintained stealth. Command needs to know, but how?",
+                    squadSize: 8,
+                    morale: "Disciplined",
+                    supplies: "Adequate",
+                    choices: [
+                        { text: "Break radio silence - speed is critical", next: "radio_report" },
+                        { text: "Send a runner - maintain communications security", next: "runner_dispatch" },
+                        { text: "Continue observing - gather more intelligence first", next: "extended_observation" },
+                        { text: "Set up long-range sniper position", next: "sniper_harassment" }
+                    ]
+                },
+                extended_observation: {
+                    location: "Hill 881 Observation Post - Day 2",
+                    narrative: "You watch for another full day. Your patience is rewarded with crucial intelligence. You've identified the enemy commander, counted weapons, mapped their defenses. You've also spotted something disturbing - they're bringing in heavy weapons. A mortar crew is setting up, and what looks like a recoilless rifle. They're preparing to hit the firebase. Time to act.",
+                    squadSize: 8,
+                    morale: "Patient",
+                    supplies: "Adequate",
+                    choices: [
+                        { text: "Call in B-52 Arc Light strike", next: "b52_arclight" },
+                        { text: "Coordinate multi-battery artillery strike", next: "arty_coordination" },
+                        { text: "Request air cavalry assault", next: "aircav_assault" },
+                        { text: "Withdraw with intelligence for major operation planning", next: "intel_withdrawal" }
+                    ]
+                },
+                b52_arclight: {
+                    location: "Arc Light Target Zone",
+                    narrative: "Your coordinates are relayed to Strategic Air Command. Hours later, high above the clouds, B-52 bombers release their payloads. You watch from safety as the entire valley erupts. The ground shakes for miles. The bombardment lasts 15 minutes. When it's over, the staging area has ceased to exist. Crater upon crater. This is strategic air power. Your intelligence just saved Firebase Alpha.",
+                    squadSize: 8,
+                    morale: "Awed",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                arty_coordination: {
+                    location: "Fire Support Coordination Center",
+                    narrative: "You coordinate with three firebase artillery batteries. The fire mission is complex - you've identified 15 separate targets. The barrage begins. For 30 minutes, shells rain down with devastating accuracy. The NVA staging area is systematically destroyed. You adjust fire throughout. Post-strike reconnaissance confirms 90+ enemy KIA. Professional artillery work.",
+                    squadSize: 8,
+                    morale: "Professional",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                aircav_assault: {
+                    location: "Air Cavalry Operation",
+                    narrative: "Within hours, an entire air cavalry squadron arrives. Hueys fill the sky. You mark targets with smoke. The assault is textbook - gunships suppress, then transport helicopters drop infantry directly onto the objective. The NVA are overwhelmed. By nightfall, the staging area is captured. Your squad is extracted with honors. This is airmobile warfare at its finest.",
+                    squadSize: 8,
+                    morale: "Elite",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                intel_withdrawal: {
+                    location: "Strategic Planning Session",
+                    narrative: "You withdraw silently with detailed intelligence. Your briefing to command reveals the full scope of the enemy operation. They were planning a coordinated attack on three firebases simultaneously. Your intelligence allows command to preempt the entire offensive. A week-long operation destroys enemy forces across the region. You prevented a potential disaster. Medals will be awarded.",
+                    squadSize: 8,
+                    morale: "Strategic",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                sniper_harassment: {
+                    location: "Long-Range Harassment",
+                    narrative: "You set up a hide site at extreme range. For three days, your designated marksman picks off key targets. An officer. A mortar crew chief. A radio operator. Each shot causes confusion and delays their preparations. Finally, they send a large force to find you. You've already withdrawn, having bought crucial time for firebase defenses to be strengthened.",
+                    squadSize: 8,
+                    morale: "Cunning",
+                    supplies: "Low",
+                    choices: []
+                },
+                runner_dispatch: {
+                    location: "Runner Mission",
+                    narrative: "Pfc. Thompson volunteers to run the message to Firebase Alpha - 5 kilometers through jungle. He moves like a ghost, avoiding enemy patrols. He reaches the firebase in record time. Reinforcements and artillery support arrive before the enemy can attack. The NVA assault hits prepared defenses and is destroyed. Thompson's courage and your communications discipline saved lives.",
+                    squadSize: 8,
+                    morale: "Exemplary",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                extract: {
+                    location: "Landing Zone Bravo",
+                    narrative: "Your instinct was right. As the Huey lifts off, enemy mortars impact your former position. Your squad is safe, but you've abandoned high ground. The firebase commander is furious - he needed that observation post. Your gut saved your men, but at what cost to the mission? You're reassigned to perimeter guard duty. Sometimes survival is its own victory.",
+                    squadSize: 8,
+                    morale: "Relieved",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                relocate: {
+                    location: "Hill 881 North, Khe Sanh",
+                    narrative: "Your squad displaces under mortar fire. Two men wounded by shrapnel, but everyone makes it to the secondary position. From here you spot the enemy mortar crew and call in air support. F-4 Phantoms scream overhead, destroying the enemy position. Your tactical flexibility saved your squad. Firebase command acknowledges your leadership. The wounded are evacuated, and fresh replacements arrive tomorrow.",
+                    squadSize: 6,
+                    morale: "Proud",
+                    supplies: "Low",
+                    choices: []
+                },
+                counterfire: {
+                    location: "Hill 881 South, Khe Sanh",
+                    narrative: "Your mortars engage in a deadly duel. The enemy has range and numbers. A direct hit on your position kills three men instantly and wounds two more. The survivors are shell-shocked. You order withdrawal under smoke. The hill is lost. This is the cost of staying to fight when outgunned. You'll carry the weight of this decision forever.",
+                    squadSize: 3,
+                    morale: "Broken",
+                    supplies: "Critical",
+                    choices: []
+                },
+                extract_urgent: {
+                    location: "Emergency Extraction",
+                    narrative: "Hueys arrive within minutes, braving enemy fire. All eight men make it aboard as mortars walk across the landing zone. The door gunner provides covering fire. Your squad is intact, but the mission is incomplete. Sometimes getting everyone home is the only victory that matters. Command understands - there will be other hills, other missions.",
+                    squadSize: 8,
+                    morale: "Grateful",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                pursue: {
+                    location: "Deep Jungle, Khe Sanh",
+                    narrative: "The charge is a disaster. You've run straight into a prepared kill zone. Crossfire from three directions cuts down half your squad in seconds. The jungle becomes a nightmare of confusion and death. You fight your way out with four survivors, leaving wounded behind. This aggressive decision haunts you. Never chase a retreating enemy into unknown terrain. The lesson is written in blood.",
+                    squadSize: 4,
+                    morale: "Devastated",
+                    supplies: "Critical",
+                    choices: []
+                },
+                suppressive: {
+                    location: "Valley Floor Combat",
+                    narrative: "Your squad lays down devastating covering fire from the hill. The M60 roars continuously. The recon team breaks contact and sprints back. Enemy return fire is intense - bullets crack overhead. The firefight alerts nearby units. You can either continue the engagement or withdraw now that your men are safe.",
+                    squadSize: 8,
+                    morale: "Professional",
+                    supplies: "Adequate",
+                    choices: [
+                        { text: "Continue engagement and call for reinforcements", next: "reinforce_attack" },
+                        { text: "Withdraw to defensive positions", next: "tactical_withdraw" },
+                        { text: "Call in artillery to finish the enemy", next: "arty_finish" },
+                        { text: "Request helicopter gunship support", next: "gunship_assist" }
+                    ]
+                },
+                reinforce_attack: {
+                    location: "Company-Size Assault",
+                    narrative: "Within an hour, a full company arrives with armored personnel carriers. You brief the commander on enemy positions. The assault is overwhelming - combined arms at its finest. Artillery softens the target, then infantry and armor sweep through. The NVA position is destroyed. You capture 12 prisoners and tons of supplies. Your initial contact led to a major victory.",
+                    squadSize: 8,
+                    morale: "Victorious",
+                    supplies: "Excellent",
+                    choices: []
+                },
+                tactical_withdraw: {
+                    location: "Defensive Perimeter, Hill 881",
+                    narrative: "You withdraw in good order to prepared positions. The NVA probe your defenses that night but don't commit to a full assault. Your disciplined fire repels them. By morning, they've withdrawn. You held the line with zero casualties. Sometimes defense is the best offense.",
+                    squadSize: 8,
+                    morale: "Steady",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                arty_finish: {
+                    location: "Artillery Fire Mission",
+                    narrative: "Fire missions rain down on the enemy position. The shells are devastatingly accurate. You adjust fire based on observation. After 20 minutes of bombardment, the NVA position is obliterated. Reconnaissance confirms 30+ enemy KIA. Your fire discipline and coordination achieved perfect results.",
+                    squadSize: 8,
+                    morale: "Professional",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                gunship_assist: {
+                    location: "Gunship Support Mission",
+                    narrative: "Two Huey gunships arrive on station. You mark the enemy position with colored smoke. The miniguns create a devastating curtain of fire. The enemy tries to shoot back but the gunship's armor holds. Within minutes, the threat is eliminated. This is American firepower at its finest.",
+                    squadSize: 8,
+                    morale: "Confident",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                flank: {
+                    location: "Flanking Maneuver in Progress",
+                    narrative: "Your flanking team moves through dense jungle while the main element provides suppressing fire. The maneuver is working - you're getting into position behind the enemy. Suddenly, you spot an NVA soldier placing what looks like a crossbow trap. He hasn't seen you yet. You're 20 meters from the enemy's flank.",
+                    squadSize: 8,
+                    morale: "Tactical",
+                    supplies: "Good",
+                    choices: [
+                        { text: "Open fire immediately - exploit total surprise", next: "flank_assault" },
+                        { text: "Silently eliminate the trap-setter first", next: "silent_takedown" },
+                        { text: "Wait for the rest of squad to get in position", next: "coordinated_flank" },
+                        { text: "Throw grenades then assault", next: "grenade_flank" }
+                    ]
+                },
+                flank_assault: {
+                    location: "Surprise Flank Attack",
+                    narrative: "You open fire. The enemy is caught completely off-guard. Panic spreads through their ranks as they realize they're being shot from behind. The crossfire from your main element and the flankers is devastating. The NVA break and run, leaving behind weapons, documents, and three wounded soldiers who surrender.",
+                    squadSize: 8,
+                    morale: "Victorious",
+                    supplies: "Excellent",
+                    choices: []
+                },
+                silent_takedown: {
+                    location: "Stealth Elimination",
+                    narrative: "Cpl. Rodriguez moves like a ghost. His knife takes the trap-setter down silently. You now have perfect position. On your signal, the flanking element opens fire with devastating effect. The enemy never knew what hit them. Textbook special operations tactics. Zero friendly casualties, total enemy rout.",
+                    squadSize: 8,
+                    morale: "Elite",
+                    supplies: "Good",
+                    choices: []
+                },
+                coordinated_flank: {
+                    location: "Coordinated Assault",
+                    narrative: "You wait for everyone to get into position. The discipline pays off. On your signal, both elements open fire simultaneously. The coordinated assault is overwhelming. The NVA position collapses in seconds. This is what good training and patience achieve. Perfect execution.",
+                    squadSize: 8,
+                    morale: "Professional",
+                    supplies: "Good",
+                    choices: []
+                },
+                grenade_flank: {
+                    location: "Explosive Assault",
+                    narrative: "Grenades arc through the air and detonate among the enemy. The explosions cause chaos. You assault through the smoke. The NVA try to resist but between the grenades and the crossfire, they don't stand a chance. One of your men is wounded by shrapnel from your own grenade - a reminder that aggressive tactics have risks. But you won decisively.",
+                    squadSize: 8,
+                    morale: "Aggressive",
+                    supplies: "Good",
+                    choices: []
+                },
+                smoke_retreat: {
+                    location: "Hill 881 South, Khe Sanh",
+                    narrative: "Smoke grenades pop and your recon team withdraws safely under the gray screen. No casualties, mission incomplete. Sometimes discretion is the better part of valor. The enemy position remains intact, but your squad is whole. Command isn't thrilled but accepts your decision. You'll get another chance to engage the enemy on better terms.",
+                    squadSize: 8,
+                    morale: "Cautious",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                napalm: {
+                    location: "Valley Floor, Khe Sanh",
+                    narrative: "The napalm strike is devastatingly effective. The valley erupts in flames that consume everything. Your recon team barely escapes the inferno. The enemy is annihilated, but the jungle burns for hours. The heat and smoke force you to abandon your position. Extreme measures bring extreme consequences. The mission succeeds, but at what environmental and tactical cost?",
+                    squadSize: 8,
+                    morale: "Shaken",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                radio_report: {
+                    location: "Hill 881 South, Khe Sanh",
+                    narrative: "Your radio transmission is intercepted. The enemy reacts immediately, launching their assault early before reinforcements arrive. Your position is overrun in a fierce firefight. Half your squad is lost holding the line while the others escape with the critical intelligence. Your sacrifice allows the firebase to prepare and repel the main assault. Heroes and mourned in equal measure.",
+                    squadSize: 4,
+                    morale: "Heroic",
+                    supplies: "None",
+                    choices: []
+                },
+                runner: {
+                    location: "Hill 881 South, Khe Sanh",
+                    narrative: "Your runner reaches the firebase safely with the written message. Reinforcements arrive in force before the enemy can attack. The NVA staging area is destroyed by coordinated artillery and air strikes. Your patient, silent discipline and use of a runner prevented the enemy from detecting your observation post. Zero casualties, mission success. This is textbook leadership.",
+                    squadSize: 8,
+                    morale: "Exemplary",
+                    supplies: "Adequate",
+                    choices: []
+                },
+                ambush_prep: {
+                    location: "Jungle Trail, Khe Sanh",
+                    narrative: "Your ambush is perfectly executed. The enemy patrol walks into your kill zone and is destroyed in thirty seconds of disciplined fire. You capture weapons, documents, and one wounded prisoner. But the noise attracts the main force. You have minutes to evacuate before being overwhelmed. Quick thinking and faster feet get you out. A tactical victory with strategic implications - the documents reveal enemy plans.",
+                    squadSize: 8,
+                    morale: "Elite",
+                    supplies: "Good",
+                    choices: []
+                },
+                withdraw: {
+                    location: "Firebase Alpha, Khe Sanh",
+                    narrative: "Your silent withdrawal is flawless. The enemy never knew you were there. You report their strength and positions to command. A B-52 strike obliterates the area that night. In war, sometimes the best decision is not to fight. Your squad is intact, the enemy is destroyed, and you live to fight another day. Command commends your tactical maturity.",
+                    squadSize: 8,
+                    morale: "Veteran",
+                    supplies: "Adequate",
+                    choices: []
+                }
+            },
+            nva: {
+                start: {
+                    location: "Ho Chi Minh Trail, Laos Border",
+                    narrative: "Your squad has been moving south for six days, carrying supplies for units near Pleiku. American aircraft patrol overhead constantly. Your men are exhausted but determined. Ahead, the trail forks - one route through open country is faster but exposed, the other through dense jungle is slower but safer. A scout reports possible American reconnaissance nearby.",
+                    squadSize: 12,
+                    morale: "Determined",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Take the fast route during darkness when aircraft are less active", next: "fast_night" },
+                        { text: "Use the jungle route despite extra time required", next: "jungle_route" },
+                        { text: "Split squad - half takes supplies fast route, half provides security", next: "split" },
+                        { text: "Hide supplies and investigate American reconnaissance", next: "investigate" }
+                    ]
+                },
+                fast_night: {
+                    location: "Open Trail, Ho Chi Minh Trail",
+                    narrative: "Moving at night, you make excellent time. But at dawn, you're caught in the open. American Phantoms appear overhead. Your squad scatters into the brush as bombs fall. Three men are killed, supplies destroyed. The survivors make it to safety, but the mission has failed. Speed without security is recklessness. The supplies never reach their destination.",
+                    squadSize: 9,
+                    morale: "Defeated",
+                    supplies: "Lost",
+                    choices: []
+                },
+                jungle_route: {
+                    location: "Deep Jungle, Ho Chi Minh Trail",
+                    narrative: "The jungle provides cover but tests endurance. On the third day, you encounter an American patrol. They haven't spotted you yet - you have the advantage of surprise and terrain. Your heavy supplies limit mobility, but your squad is larger and knows this ground. The Americans are moving carelessly, probably on routine patrol.",
+                    squadSize: 12,
+                    morale: "Steady",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Ambush the patrol - eliminate the threat", next: "ambush" },
+                        { text: "Let them pass - avoid engagement and continue mission", next: "avoid" },
+                        { text: "Trail them and gather intelligence on their base", next: "trail" },
+                        { text: "Send harassment team to draw them away from your route", next: "harassment" }
+                    ]
+                },
+                split: {
+                    location: "Trail Junction, Ho Chi Minh Trail",
+                    narrative: "You split your force. The supply team moves fast but is hit by American helicopter gunships at dawn. All six carriers are killed or wounded, supplies destroyed. Your security team survives but arrives too late. Dividing your strength in enemy territory is often fatal. The wounded must be evacuated south. Mission failure weighs heavily on your conscience.",
+                    squadSize: 6,
+                    morale: "Grieving",
+                    supplies: "Lost",
+                    choices: []
+                },
+                investigate: {
+                    location: "Ridge Overlook, Laos Border",
+                    narrative: "You cache the supplies and move to investigate. Your scout was right - an American long-range reconnaissance patrol has established an observation post overlooking the trail. Four men with radio equipment. They're calling in coordinates. If you don't act, tomorrow brings air strikes. But attacking reveals your presence and may compromise your supply mission.",
+                    squadSize: 12,
+                    morale: "Tense",
+                    supplies: "Cached",
+                    choices: [
+                        { text: "Attack the observation post immediately with full squad", next: "attack_op" },
+                        { text: "Bypass them, retrieve supplies, use alternate route", next: "bypass" },
+                        { text: "Set up ambush on their extraction route", next: "extract_ambush" },
+                        { text: "Observe and report their position to higher command", next: "report_up" }
+                    ]
+                },
+                ambush: {
+                    location: "Jungle Trail Ambush - Initial Contact",
+                    narrative: "Your L-shaped ambush is perfectly positioned. The American patrol enters the kill zone - eight men, moving carelessly. You can see their M16s, grenades, radio pack. They're 15 meters away, completely unaware. Your men are ready, weapons aimed. This is the moment before violence. You raise your hand to signal the ambush.",
+                    squadSize: 12,
+                    morale: "Predatory",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Spring the ambush with concentrated fire", next: "full_ambush" },
+                        { text: "Focus fire on radio operator first", next: "radio_priority" },
+                        { text: "Use command-detonated claymore mines first", next: "mine_ambush" },
+                        { text: "Let the last man pass then attack - isolate them", next: "isolation_ambush" }
+                    ]
+                },
+                full_ambush: {
+                    location: "Ambush Execution",
+                    narrative: "Your signal drops. Twelve AK-47s open fire simultaneously. The initial volley is devastating - half the Americans drop in the first two seconds. But these are professional soldiers. The survivors immediately return fire and take cover. A fierce firefight erupts. Your machine gunner suppresses their position while assault teams maneuver. After three brutal minutes, it's over. Two of your men are wounded but you've won decisively.",
+                    squadSize: 12,
+                    morale: "Battle-Tested",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Quickly search bodies and withdraw", next: "rapid_search" },
+                        { text: "Set booby traps on American bodies", next: "body_traps" },
+                        { text: "Move supplies immediately before response arrives", next: "rush_south" },
+                        { text: "Ambush the inevitable American rescue force", next: "secondary_ambush" }
+                    ]
+                },
+                radio_priority: {
+                    location: "Precision Ambush",
+                    narrative: "You've identified the radio operator by his antenna. Your best marksman takes him first. The radio is destroyed. Then your squad opens fire. Without communications, the Americans can't call for help. The ambush is textbook perfect. You capture all their weapons and documents. The lack of radio traffic means American command won't know for hours. You have time to move.",
+                    squadSize: 12,
+                    morale: "Professional",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Move supplies south using captured map", next: "map_route" },
+                        { text: "Use captured radio to mislead Americans", next: "radio_deception" },
+                        { text: "Set trap network around ambush site", next: "trap_network" }
+                    ]
+                },
+                mine_ambush: {
+                    location: "Explosive Ambush",
+                    narrative: "You trigger the command-detonated mines. The explosions rip through the American patrol. Three are killed instantly, the rest wounded and disoriented. Your squad opens fire on the survivors. It's over in 20 seconds. The mine tactic was devastatingly effective but the explosions will attract attention. You must move quickly.",
+                    squadSize: 12,
+                    morale: "Ruthless",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Immediate forced march south", next: "forced_march" },
+                        { text: "Set up defensive position expecting response", next: "defensive_prep" }
+                    ]
+                },
+                isolation_ambush: {
+                    location: "Isolation Tactic",
+                    narrative: "You let the point man and slack man pass, then trigger the ambush on the main body. The patrol is split. Confusion reigns. The isolated soldiers try to return but your blocking force prevents it. You've divided and destroyed them using classic guerrilla tactics. Minimal friendly casualties, maximum enemy losses. Your tactical sophistication is impressive.",
+                    squadSize: 12,
+                    morale: "Elite",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Continue mission south with supplies", next: "mission_continue" },
+                        { text: "Use this success to plan more ambushes", next: "ambush_campaign" }
+                    ]
+                },
+                rapid_search: {
+                    location: "Post-Ambush Search",
+                    narrative: "Your men rapidly search the American bodies. You capture: three M16 rifles, grenades, field radio, documents with patrol schedules, and American rations. Within three minutes you're moving south. Hours later you hear helicopters searching the area. You're already five kilometers away. Speed and discipline prevented American response from catching you.",
+                    squadSize: 12,
+                    morale: "Efficient",
+                    supplies: "Excellent",
+                    choices: []
+                },
+                body_traps: {
+                    location: "Psychological Warfare",
+                    narrative: "Your squad rigs American bodies with grenade traps - classic psychological warfare. When the rescue force arrives, three Americans are wounded by your traps. The horror and anger this causes makes the Americans more cautious in future patrols. But it also makes them more brutal. You've escalated the cycle of violence. The supplies reach their destination but at a moral cost.",
+                    squadSize: 12,
+                    morale: "Hardened",
+                    supplies: "Delivered",
+                    choices: []
+                },
+                secondary_ambush: {
+                    location: "Double Ambush",
+                    narrative: "You predict the American response and set a second ambush on the likely helicopter landing zone. When Hueys arrive with a rescue force, you're ready. Your RPG damages one helicopter, forcing it down. The ambush on the rescue force is devastating. But American jet fighters arrive within minutes. You must break contact and scatter. You've won tactically but the attention you've drawn endangers the entire supply route.",
+                    squadSize: 10,
+                    morale: "Aggressive",
+                    supplies: "Cached",
+                    choices: []
+                },
+                avoid: {
+                    location: "Deep Jungle, Ho Chi Minh Trail",
+                    narrative: "The American patrol passes within meters of your hidden position. Discipline keeps your men silent despite the tension. After they leave, you continue south. Days later, you deliver all supplies intact to grateful comrades near Pleiku. Your restraint and patience ensured mission success. Sometimes the hardest decision is not to fight. Your commander commends your judgment.",
+                    squadSize: 12,
+                    morale: "Disciplined",
+                    supplies: "Delivered",
+                    choices: []
+                },
+                trail: {
+                    location: "Following American Patrol",
+                    narrative: "You trail the Americans for hours, learning their patterns and discovering their firebase location. This intelligence is valuable. But trailing them delays your supply mission by two days. When you finally deliver supplies, they're desperately needed - a planned attack was nearly cancelled. Your intelligence proves valuable later, but timing is everything in war. Mixed results.",
+                    squadSize: 12,
+                    morale: "Strategic",
+                    supplies: "Delivered Late",
+                    choices: []
+                },
+                harassment: {
+                    location: "Ho Chi Minh Trail Crossroads",
+                    narrative: "Your harassment team leads the Americans away with distant gunfire. The ruse works perfectly. The main squad moves supplies safely while the Americans chase phantoms. Your harassment team rejoins you three days later. Everyone is safe, supplies delivered on time. Clever tactics overcome superior firepower. This is how patience and cunning defeat technology.",
+                    squadSize: 12,
+                    morale: "Clever",
+                    supplies: "Delivered",
+                    choices: []
+                },
+                attack_op: {
+                    location: "Ridge Overlook, Laos Border",
+                    narrative: "Your full squad assault overwhelms the observation post. All four Americans are killed before they can radio. No friendly casualties. You've bought time, but American command will send search teams. You retrieve supplies and move through the night. The captured radio and codes prove valuable. Mission success, but increased enemy activity will make future trips more dangerous.",
+                    squadSize: 12,
+                    morale: "Aggressive",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Use captured radio to mislead American forces", next: "radio_deception" },
+                        { text: "Destroy radio and move quickly south", next: "quick_south" }
+                    ]
+                },
+                bypass: {
+                    location: "Alternate Route, Ho Chi Minh Trail",
+                    narrative: "You retrieve supplies and use the longer alternate route. The observation post never sees you. Your supplies reach their destination safely, though three days late. The delayed munitions mean a planned attack is postponed. Sometimes avoiding engagement is wisdom, but timing matters in war. Your caution saved lives but affected the larger campaign. A commander must balance many considerations.",
+                    squadSize: 12,
+                    morale: "Cautious",
+                    supplies: "Delivered Late",
+                    choices: []
+                },
+                extract_ambush: {
+                    location: "Landing Zone Ambush Site",
+                    narrative: "You predict their helicopter extraction point and set the perfect ambush. When the Huey arrives, your coordinated fire destroys it and kills all aboard. But the explosion and burning wreckage attract immediate American response. You must abandon the area as jets scream overhead. Your tactical victory costs you two days and brings increased patrols to the area. Every action has consequences.",
+                    squadSize: 12,
+                    morale: "Successful",
+                    supplies: "Heavy Load",
+                    choices: [
+                        { text: "Continue mission through danger zone", next: "continue_mission" },
+                        { text: "Cache supplies and lie low until area clears", next: "lie_low" }
+                    ]
+                },
+                report_up: {
+                    location: "Ho Chi Minh Trail, Laos Border",
+                    narrative: "You report the observation post to higher command. Days later, a specialized unit eliminates it. You complete your supply mission without incident. Your patience and proper use of chain of command demonstrates maturity. The supplies arrive on time, the observation post is destroyed, and you maintain operational security. Professional soldiering brings professional results.",
+                    squadSize: 12,
+                    morale: "Professional",
+                    supplies: "Delivered",
+                    choices: []
+                },
+                rush_south: {
+                    location: "High-Speed Movement South",
+                    narrative: "Forced march brings supplies to destination in record time, just before American search operations intensify the area. Your men are exhausted but alive. Supplies delivered ahead of schedule enable a successful attack on an American firebase. Your aggressive timeline paid off. Command recognizes your leadership under pressure. Well done, Comrade Squad Leader.",
+                    squadSize: 12,
+                    morale: "Exhausted but Proud",
+                    supplies: "Delivered Early",
+                    choices: []
+                },
+                hide_wait: {
+                    location: "Hidden Cache, Ho Chi Minh Trail",
+                    narrative: "You hide the supplies and your squad melts into the jungle. American helicopters search for days but find nothing. When the area quiets, you resume movement and deliver supplies safely. Your patience and fieldcraft defeated American technology. Zero casualties, mission success, enemy frustrated. This is how wars are won - not with single battles, but with countless successful missions like yours.",
+                    squadSize: 12,
+                    morale: "Victorious",
+                    supplies: "Delivered",
+                    choices: []
+                },
+                radio_deception: {
+                    location: "Using Captured Radio",
+                    narrative: "Using the captured radio and American call signs, you send false reports that redirect aircraft and patrols away from your route. The deception works brilliantly. You deliver supplies safely while American forces chase ghosts. Intelligence later reports your radio game caused significant confusion. Cleverness and language skills proved as valuable as weapons. Outstanding work.",
+                    squadSize: 12,
+                    morale: "Brilliant",
+                    supplies: "Delivered",
+                    choices: []
+                },
+                quick_south: {
+                    location: "Rapid Southern Movement",
+                    narrative: "You destroy the radio and move fast. Supplies reach destination before American response fully develops. Mission success with minimal risk. Your conservative approach - take what you need, destroy what you can't use, and keep moving - is the essence of guerrilla warfare. Supplies delivered, squad intact, enemy confused. This is how victory is achieved.",
+                    squadSize: 12,
+                    morale: "Efficient",
+                    supplies: "Delivered",
+                    choices: []
+                },
+                continue_mission: {
+                    location: "Dangerous Territory",
+                    narrative: "You push through despite increased patrols. Close calls test your nerves, but superior fieldcraft and jungle knowledge see you through. Supplies delivered on time, though the stress takes its toll. Two men request transfer to less dangerous duties after this mission. Leadership means weighing risks against rewards. You succeeded, but at a cost to squad cohesion.",
+                    squadSize: 12,
+                    morale: "Stressed",
+                    supplies: "Delivered",
+                    choices: []
+                },
+                lie_low: {
+                    location: "Hidden Cache Location",
+                    narrative: "You cache supplies and wait. American patrols saturate the area for a week, but never find you. When activity diminishes, you retrieve supplies and complete delivery. Mission delayed but successful. Your patience and discipline prevented casualties and ensured success. Sometimes the warrior's greatest strength is knowing when not to fight. Your squad respects your wisdom.",
+                    squadSize: 12,
+                    morale: "Patient",
+                    supplies: "Delivered Late",
+                    choices: []
+                }
+            }
+        };
+
+        function SquadLeaderGame() {
+            const [faction, setFaction] = useState(null);
+            const [currentScene, setCurrentScene] = useState('start');
+
+            const handleFactionSelect = (selectedFaction) => {
+                setFaction(selectedFaction);
+            };
+
+            const handleChoice = (nextScene) => {
+                setCurrentScene(nextScene);
+            };
+
+            const resetGame = () => {
+                setFaction(null);
+                setCurrentScene('start');
+            };
+
+            if (!faction) {
+                return (
+                    <div className="game-container">
+                        <div className="header">
+                            <h1 className="title">Squad Leader</h1>
+                            <p className="subtitle">Vietnam 1968</p>
+                        </div>
+                        
+                        <div className="faction-select">
+                            <div className="faction-card us" onClick={() => handleFactionSelect('us')}>
+                                <h2 className="faction-title">U.S. Army</h2>
+                                <p className="faction-description">
+                                    Lead an American rifle squad in the Central Highlands. Superior firepower and air support, but fighting in unfamiliar terrain against an elusive enemy. Technology versus determination.
+                                </p>
+                            </div>
+                            
+                            <div className="faction-card nva" onClick={() => handleFactionSelect('nva')}>
+                                <h2 className="faction-title">NVA / VC</h2>
+                                <p className="faction-description">
+                                    Command a People's Army squad on the Ho Chi Minh Trail. Outnumbered and outgunned, but you know this land. Patience, discipline, and cunning against overwhelming force.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const scene = gameData[faction][currentScene];
+            const isEnding = scene.choices.length === 0;
+
+            return (
+                <div className="game-container">
+                    <div className="header">
+                        <h1 className="title">Squad Leader</h1>
+                        <p className="subtitle">{faction === 'us' ? 'U.S. Army' : 'NVA / Viet Cong'}</p>
+                    </div>
+
+                    <div className="story-container">
+                        <div className="location-header">
+                            <div className="location">{scene.location}</div>
+                            <div className="squad-status">● ACTIVE</div>
+                        </div>
+
+                        <p className="narrative">{scene.narrative}</p>
+
+                        {!isEnding ? (
+                            <div className="choices">
+                                {scene.choices.map((choice, index) => (
+                                    <button
+                                        key={index}
+                                        className="choice-button"
+                                        onClick={() => handleChoice(choice.next)}
+                                    >
+                                        {choice.text}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div>
+                                <div className="donate-section">
+                                    <p className="donate-text">
+                                        Enjoyed your journey? Support the developer with a coffee!
+                                    </p>
+                                    <button 
+                                        className="donate-button"
+                                        onClick={() => window.open('https://www.buymeacoffee.com/a1mega', '_blank')}
+                                    >
+                                        ☕ Buy Me A Coffee
+                                    </button>
+                                </div>
+                                <div className="choices">
+                                    <button className="reset-button" onClick={resetGame}>
+                                        ★ New Mission ★
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="squad-info">
+                            <div className="stat">
+                                <div className="stat-label">Squad Size</div>
+                                <div className="stat-value">{scene.squadSize} Men</div>
+                            </div>
+                            <div className="stat">
+                                <div className="stat-label">Morale</div>
+                                <div className="stat-value">{scene.morale}</div>
+                            </div>
+                            <div className="stat">
+                                <div className="stat-label">Supplies</div>
+                                <div className="stat-value">{scene.supplies}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<SquadLeaderGame />, document.getElementById('root'));
+    </script>
+</body>
+</html>

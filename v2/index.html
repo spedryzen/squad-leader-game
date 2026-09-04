@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817 -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Squad Leader: Vietnam (v2 OOP Architecture)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Saira+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --jungle-dark: #121c12;
+            --jungle-mid: #1f331f;
+            --earth-brown: #4a3b2c;
+            --dust-tan: #d4c4a8;
+            --blood-red: #8b2e2e;
+            --radio-green: #3d8b57;
+            --terminal-green: #4af626;
+            --smoke-gray: #888877;
+            --warning-yellow: #e8d174;
+            --panel-bg: rgba(18, 28, 18, 0.85);
+        }
+
+        body {
+            font-family: 'Courier Prime', monospace;
+            background: linear-gradient(135deg, var(--jungle-dark) 0%, #201a15 100%);
+            color: var(--dust-tan);
+            min-height: 100vh;
+            padding: 24px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 24px;
+            background: var(--panel-bg);
+            border: 2px solid var(--earth-brown);
+            border-left: 6px solid var(--blood-red);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        }
+
+        h1 {
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--warning-yellow);
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--smoke-gray);
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 4px 12px;
+            background: rgba(61, 139, 87, 0.2);
+            border: 1px solid var(--radio-green);
+            color: var(--terminal-green);
+            font-size: 0.8rem;
+            border-radius: 3px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--earth-brown);
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .panel-header {
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 1.3rem;
+            color: var(--warning-yellow);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-bottom: 1px dashed var(--earth-brown);
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #event-log {
+            list-style: none;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 3px solid var(--radio-green);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-meta {
+            display: flex;
+            justify-content: space-between;
+            color: var(--smoke-gray);
+            font-size: 0.75rem;
+        }
+
+        .log-event-name {
+            color: var(--terminal-green);
+            font-weight: 700;
+        }
+
+        .log-payload {
+            color: var(--dust-tan);
+            white-space: pre-wrap;
+            word-break: break-all;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module" src="./src/main.js?v=7"></script>
+</body>
+</html>

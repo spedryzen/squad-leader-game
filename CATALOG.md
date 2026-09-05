@@ -39,12 +39,12 @@ This catalog documents the modules, scripts, and documentation files within the 
 - **Outputs**: Publishes `SCENE_RENDERED` with scene payload data and dispatches choice-specific lifecycle events over the MessageBus.
 
 ### `v2/src/core/SaveManager.js`
-- **Description**: Auto-save and state persistence manager utilizing HTML5 `localStorage`. Subscribes to `SCENE_RENDERED` to serialize progress across all campaign systems (scene ID, ledger stats, squad roster, relationships, traits, journal entries, conditions, reputation, dynamic events, weather, radio, intel, enemy commander AI, ambush encounters, heroic actions/medals, tactical map markers/path, wounded soldier status/carriers, and battlefield recovery history), saving snapshot records under key `squadLeaderSave`. Provides `loadGame()`, `saveGame()`, `hasSave()`, and `clearSave()` methods, and broadcasts `GAME_SAVED`, `GAME_LOADED`, and `SAVE_CLEARED` events.
+- **Description**: Auto-save and state persistence manager utilizing HTML5 `localStorage`. Subscribes to `SCENE_RENDERED` to serialize progress across all 16 campaign systems (scene ID, ledger stats, squad roster, relationships, traits, journal entries, conditions, reputation, dynamic events, weather, radio, intel, enemy commander AI, ambush encounters, heroic actions/medals, tactical map markers/path, wounded soldier status/carriers, battlefield recovery history, and dynamic extraction state), saving snapshot records under key `squadLeaderSave`. Provides `loadGame()`, `saveGame()`, `hasSave()`, and `clearSave()` methods, and broadcasts `GAME_SAVED`, `GAME_LOADED`, and `SAVE_CLEARED` events.
 - **Inputs**:
-  - `constructor(messageBus: MessageBus, sceneManager: SceneManager, squadManager: SquadManager, ledger: Ledger, storageKey?: string, systems?: object)`: System manager instances, storage key name, and optional system references (`relationshipManager`, `traitManager`, `journal`, `conditionManager`, `reputationManager`, `dynamicEventManager`, `weatherSystem`, `radioSystem`, `intelSystem`, `enemyCommander`, `ambushSystem`, `heroicActionManager`, `tacticalMapManager`, `woundedSoldierManager`, `battlefieldRecoverySystem`).
+  - `constructor(messageBus: MessageBus, sceneManager: SceneManager, squadManager: SquadManager, ledger: Ledger, storageKey?: string, systems?: object)`: System manager instances, storage key name, and optional system references (`relationshipManager`, `traitManager`, `journal`, `conditionManager`, `reputationManager`, `dynamicEventManager`, `weatherSystem`, `radioSystem`, `intelSystem`, `enemyCommander`, `ambushSystem`, `heroicActionManager`, `tacticalMapManager`, `woundedSoldierManager`, `battlefieldRecoverySystem`, `extractionSystem`).
   - Event `SCENE_RENDERED`: Automatically triggers `saveGame()` with the rendered scene ID.
   - `saveGame(sceneId?: string)`: Manually triggers serialized state write to `localStorage`.
-  - `loadGame()`: Deserializes save data, invokes `ledger.setStats()`, `squadManager.setRoster()`, `sceneManager.loadScene()`, restores all system states, and publishes `GAME_LOADED`.
+  - `loadGame()`: Deserializes save data, invokes `ledger.setStats()`, `squadManager.setRoster()`, `sceneManager.loadScene()`, restores all 16 system states, and publishes `GAME_LOADED`.
   - `hasSave()`: Checks if valid save record exists in `localStorage`.
   - `getSaveData()`: Parses and returns save record object.
   - `clearSave()`: Deletes save key from `localStorage` and broadcasts `SAVE_CLEARED`.
@@ -249,6 +249,20 @@ This catalog documents the modules, scripts, and documentation files within the 
   - Events: `SCENE_RENDERED`, `CHOICE_MADE`, `GAME_LOADED`.
 - **Outputs**: Publishes `RECOVERY_OFFERED` and `RECOVERY_EXECUTED`.
 
+## Systems (Phase 6)
+
+### `v2/src/systems/ExtractionSystem.js`
+- **Description**: Procedurally determines and executes the campaign endgame extraction at LZ X-Ray based on cumulative campaign history across all 16 systems. Evaluates 6 dynamic ending archetypes (`clean_extraction`, `running_gunfight`, `helicopter_shot_down`, `last_stand`, `rear_guard_sacrifice`, `split_evacuation`). Generates emergent war story epilogues honoring the squad's sacrifice ("Washington died saving Jenkins"), resolves extraction consequences (KIA, medals, journal logs), compiles extraction summaries, and supports complete serialization.
+- **Inputs**:
+  - `constructor(messageBus: MessageBus, systems?: object, options?: object)`: MessageBus, system references (squadManager, ledger, woundedSoldierManager, intelSystem, reputationManager, weatherSystem, heroicActionManager, enemyCommander, journal), and configuration options.
+  - `evaluateExtraction(contextOverrides?: object)`: Evaluates dynamic criteria across surviving soldiers, wounded personnel, Heat, Intel tier, Command Reputation, Weather, Heroic actions, and Enemy Commander aggression to compute the matching ending archetype and outcome score; broadcasts `EXTRACTION_CALCULATED`.
+  - `executeExtraction(archetypeId?: string, forcedDetails?: object)`: Executes extraction lifecycle, applies casualties, triggers heroic sacrifices/medals, logs journal chronicling, and broadcasts `EXTRACTION_STARTED`, `EXTRACTION_RESOLVED`, `EXTRACTION_EVACUATED`, `EXTRACTION_FALLEN`, `EXTRACTION_HEROIC_SACRIFICE`, and `EXTRACTION_COMPLETED`.
+  - `generateWarStoryEpilogue(archetypeId, details)`: Generates atmospheric emergent military narrative weaving in fallen comrades, heroic deeds, and weather/reputation context.
+  - `getExtractionSummary()`: Returns complete mission conclusion breakdown including archetype, outcome score, survivors, wounded, fallen, medals, and epilogue text.
+  - `serialize()` / `deserialize(data)`: State persistence routines.
+  - Events: `CHOICE_MADE`, `SCENE_RENDERED`, `GAME_LOADED`.
+- **Outputs**: Publishes `EXTRACTION_CALCULATED`, `EXTRACTION_STARTED`, `EXTRACTION_RESOLVED`, `EXTRACTION_EVACUATED`, `EXTRACTION_FALLEN`, `EXTRACTION_HEROIC_SACRIFICE`, and `EXTRACTION_COMPLETED`.
+
 ## Entities (v2)
 
 ### `v2/src/entities/Soldier.js`
@@ -296,9 +310,9 @@ This catalog documents the modules, scripts, and documentation files within the 
 - **Outputs**: Renders base HTML layout and boots ES module scripts.
 
 ### `v2/src/main.js`
-- **Description**: Composition root that wires together `MessageBus`, `Ledger`, `SquadManager`, `RelationshipManager`, `TraitManager`, `Journal`, `PsychologicalConditionManager`, `ReputationManager`, `DynamicEventManager`, `WeatherSystem`, `RadioSystem`, `IntelSystem`, `EnemyCommander`, `AmbushSystem`, `HeroicActionManager`, `TacticalMapManager`, `WoundedSoldierManager`, `BattlefieldRecoverySystem`, `GameEngine`, `SceneManager`, and `SaveManager` instances with campaign scenario data. Listens for `SCENE_RENDERED` and `CHOICE_RESOLUTION` to dynamically present narrative briefings and interactive tactical choice buttons in the DOM, provides campaign save management UI controls (Resume, New Game, Manual Save, Clear Save), handles auto-save/restore on startup, attaches real-time visual monitors (Weather, Radio, Enemy Strategy, Ambush tension), and initiates engine startup (`gameEngine.init()`).
+- **Description**: Composition root that wires together `MessageBus`, `Ledger`, `SquadManager`, `RelationshipManager`, `TraitManager`, `Journal`, `PsychologicalConditionManager`, `ReputationManager`, `DynamicEventManager`, `WeatherSystem`, `RadioSystem`, `IntelSystem`, `EnemyCommander`, `AmbushSystem`, `HeroicActionManager`, `TacticalMapManager`, `WoundedSoldierManager`, `BattlefieldRecoverySystem`, `ExtractionSystem`, `GameEngine`, `SceneManager`, and `SaveManager` instances with campaign scenario data. Listens for `SCENE_RENDERED` and `CHOICE_RESOLUTION` to dynamically present narrative briefings and interactive tactical choice buttons in the DOM, provides campaign save management UI controls (Resume, New Game, Manual Save, Clear Save), handles auto-save/restore on startup, attaches real-time visual monitors (Weather, Radio, Enemy Strategy, Ambush tension, Extraction Status), handles endgame mission conclusion with full dynamic extraction overlay (War Story Epilogue, citations, honored fallen list, survivors roster), and initiates engine startup (`gameEngine.init()`).
 - **Inputs**: Imported core modules, systems, entities, state, data, and DOM elements from `index.html`.
-- **Outputs**: Initialized OOP system instances, real-time DOM event logger stream, interactive tactical narrative UI with choice buttons, active squad roster view with trait/wound badges, campaign save status bar and controls, and exported module references.
+- **Outputs**: Initialized OOP system instances, real-time DOM event logger stream, interactive tactical narrative UI with choice buttons, active squad roster view with trait/wound badges, campaign save status bar and controls, endgame extraction conclusion modal, and exported module references.
 
 ## Campaign Data (v2)
 
@@ -338,6 +352,11 @@ This catalog documents the modules, scripts, and documentation files within the 
 - **Description**: Automated unit and integration test suite using Node.js built-in `node:test` and `node:assert/strict` covering Phase 5 systems.
 - **Inputs**: `npm test` or `node --test v2/test/phase5.test.js`.
 - **Outputs**: Executes 23 test cases validating TacticalMapManager 7 marker types/Intel visibility filtering/path breadcrumbs/serialization, WoundedSoldierManager triage/carry/medevac/hold/abandonment/bleedout/serialization, BattlefieldRecoverySystem 5 post-combat scavenging choices/rewards/Heat escalation/serialization, SaveManager Phase 5 state persistence, and full cross-system MessageBus choreography.
+
+### `v2/test/phase6.test.js`
+- **Description**: Automated unit and integration test suite using Node.js built-in `node:test` and `node:assert/strict` covering Phase 6 systems.
+- **Inputs**: `npm test` or `node --test v2/test/phase6.test.js`.
+- **Outputs**: Executes 16 test cases validating ExtractionSystem 6 ending archetypes/calculation/lifecycle execution/emergent war story generation/serialization, master SaveManager round-trip persistence across all 16 systems with 100% fidelity, and full cross-system MessageBus integration.
 
 ## Utilities
 

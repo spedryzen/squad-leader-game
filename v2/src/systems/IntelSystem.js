@@ -319,6 +319,25 @@ export class IntelSystem {
   }
 
   /**
+   * Alias for getReconDiscoveries.
+   * @returns {Array<object>}
+   */
+  getDiscoveries() {
+    return this.getReconDiscoveries();
+  }
+
+  /**
+   * Returns current operational state snapshot.
+   * @returns {{ currentTier: string, discoveries: Array<object> }}
+   */
+  getState() {
+    return {
+      currentTier: this.getIntelTier(),
+      discoveries: this.getReconDiscoveries()
+    };
+  }
+
+  /**
    * Serializes intelligence system state for persistence.
    * @returns {object}
    */

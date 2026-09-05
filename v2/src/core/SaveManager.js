@@ -4,13 +4,13 @@
 /*
 --------------------------------------------------
 File Name: SaveManager.js
-Purpose: Manages auto-saving and state restoration to/from HTML5 localStorage for scene progression, ledger resources, squad status, relationships, traits, journal entries, psychological conditions, reputation, dynamic events, weather, radio communications, tactical intelligence, enemy commander AI, ambush encounters, heroic actions, tactical map, wounded soldiers, and battlefield recovery.
+Purpose: Manages auto-saving and state restoration to/from HTML5 localStorage for scene progression, ledger resources, squad status, relationships, traits, journal entries, psychological conditions, reputation, dynamic events, weather, radio communications, tactical intelligence, enemy commander AI, ambush encounters, heroic actions, tactical map, wounded soldiers, battlefield recovery, and dynamic extraction endgame.
 Responsibilities:
-- Serialize active game state (sceneId, ledger stats, squad roster, relationships, traits, journal, conditions, reputation, dynamicEvents, weather, radio, intel, enemyCommander, ambush, heroics, tacticalMap, wounded, recovery)
+- Serialize active game state across all 16 systems (sceneId, ledger stats, squad roster, relationships, traits, journal, conditions, reputation, dynamicEvents, weather, radio, intel, enemyCommander, ambush, heroics, tacticalMap, wounded, recovery, extraction)
 - Persist snapshots to browser localStorage under key 'squadLeaderSave'
 - Restore campaign state and broadcast GAME_LOADED
 - Provide manual save, load, and save clearing routines
-Dependencies: MessageBus.js, SceneManager.js, SquadManager.js, Ledger.js, optional systems (RelationshipManager, TraitManager, Journal, PsychologicalConditionManager, ReputationManager, DynamicEventManager, WeatherSystem, RadioSystem, IntelSystem, EnemyCommander, AmbushSystem, HeroicActionManager, TacticalMapManager, WoundedSoldierManager, BattlefieldRecoverySystem)
+Dependencies: MessageBus.js, SceneManager.js, SquadManager.js, Ledger.js, optional systems (RelationshipManager, TraitManager, Journal, PsychologicalConditionManager, ReputationManager, DynamicEventManager, WeatherSystem, RadioSystem, IntelSystem, EnemyCommander, AmbushSystem, HeroicActionManager, TacticalMapManager, WoundedSoldierManager, BattlefieldRecoverySystem, ExtractionSystem)
 Published Events:
 - GAME_SAVED: Dispatched upon successful save snapshot serialization
 - GAME_LOADED: Dispatched upon loading and restoring state across all systems
@@ -32,7 +32,7 @@ export class SaveManager {
    * @param {import('../entities/SquadManager.js').SquadManager} [squadManager] - Active squad manager.
    * @param {import('../state/Ledger.js').Ledger} [ledger] - Active resource ledger.
    * @param {string} [storageKey='squadLeaderSave'] - Key name for localStorage.
-   * @param {object} [systems={}] - Optional systems: { relationshipManager, traitManager, journal, conditionManager, reputationManager, dynamicEventManager, weatherSystem, radioSystem, intelSystem }.
+   * @param {object} [systems={}] - Optional systems: { relationshipManager, traitManager, journal, conditionManager, reputationManager, dynamicEventManager, weatherSystem, radioSystem, intelSystem, enemyCommander, ambushSystem, heroicActionManager, tacticalMapManager, woundedSoldierManager, battlefieldRecoverySystem, extractionSystem }.
    */
   constructor(messageBus, sceneManager, squadManager, ledger, storageKey = 'squadLeaderSave', systems = {}) {
     this.messageBus = messageBus || null;
@@ -66,6 +66,9 @@ export class SaveManager {
     this.tacticalMapManager = systems.tacticalMapManager || systems.mapManager || null;
     this.woundedSoldierManager = systems.woundedSoldierManager || systems.woundedManager || null;
     this.battlefieldRecoverySystem = systems.battlefieldRecoverySystem || systems.recoverySystem || null;
+
+    // Phase 6 systems
+    this.extractionSystem = systems.extractionSystem || null;
 
     if (this.messageBus && typeof this.messageBus.subscribe === 'function') {
       this.messageBus.subscribe('SCENE_RENDERED', (payload) => {
@@ -108,6 +111,9 @@ export class SaveManager {
     }
     if (systems.battlefieldRecoverySystem || systems.recoverySystem) {
       this.battlefieldRecoverySystem = systems.battlefieldRecoverySystem || systems.recoverySystem;
+    }
+    if (systems.extractionSystem) {
+      this.extractionSystem = systems.extractionSystem;
     }
   }
 
@@ -178,7 +184,8 @@ export class SaveManager {
       heroics: this.heroicActionManager?.serialize ? this.heroicActionManager.serialize() : null,
       tacticalMap: this.tacticalMapManager?.serialize ? this.tacticalMapManager.serialize() : null,
       wounded: this.woundedSoldierManager?.serialize ? this.woundedSoldierManager.serialize() : null,
-      recovery: this.battlefieldRecoverySystem?.serialize ? this.battlefieldRecoverySystem.serialize() : null
+      recovery: this.battlefieldRecoverySystem?.serialize ? this.battlefieldRecoverySystem.serialize() : null,
+      extraction: this.extractionSystem?.serialize ? this.extractionSystem.serialize() : null
     };
 
     if (this.isStorageAvailable()) {
@@ -310,18 +317,23 @@ export class SaveManager {
       this.battlefieldRecoverySystem.deserialize(saveData.recovery || saveData.battlefieldRecovery);
     }
 
-    // 8. Temporarily disable auto-save while restoring scene to avoid redundant intermediate writes
+    // 8. Restore Phase 6 Dynamic Extraction system if references attached
+    if ((saveData.extraction || saveData.extractionSystem) && this.extractionSystem && typeof this.extractionSystem.deserialize === 'function') {
+      this.extractionSystem.deserialize(saveData.extraction || saveData.extractionSystem);
+    }
+
+    // 9. Temporarily disable auto-save while restoring scene to avoid redundant intermediate writes
     const prevAutoSave = this.isAutoSaveEnabled;
     this.isAutoSaveEnabled = false;
 
-    // 8. Restore Scene in SceneManager
+    // 10. Restore Scene in SceneManager
     if (saveData.sceneId && this.sceneManager && typeof this.sceneManager.loadScene === 'function') {
       this.sceneManager.loadScene(saveData.sceneId);
     }
 
     this.isAutoSaveEnabled = prevAutoSave;
 
-    // 9. Publish GAME_LOADED event so all subscribed systems react
+    // 11. Publish GAME_LOADED event so all subscribed systems react
     if (this.messageBus && typeof this.messageBus.publish === 'function') {
       this.messageBus.publish('GAME_LOADED', saveData);
     }

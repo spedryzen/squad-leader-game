@@ -296,7 +296,9 @@ export class HeroicActionManager {
       soldierId,
       soldierName,
       medalType,
+      medal: medalType,
       citation,
+      citationText: citation,
       actionType: meta.actionType || 'Valor In Combat',
       location,
       timestamp,
@@ -437,6 +439,14 @@ export class HeroicActionManager {
    */
   getAllMedals() {
     return [...this.medals];
+  }
+
+  /**
+   * Retrieves all medals awarded across the squad (alias for getAllMedals).
+   * @returns {Array<object>}
+   */
+  getMedals() {
+    return this.getAllMedals();
   }
 
   /**

@@ -37,6 +37,7 @@ import { HeroicActionManager } from './systems/HeroicActionManager.js';
 import { TacticalMapManager } from './systems/TacticalMapManager.js';
 import { WoundedSoldierManager } from './systems/WoundedSoldierManager.js';
 import { BattlefieldRecoverySystem } from './systems/BattlefieldRecoverySystem.js';
+import { ExtractionSystem, EXTRACTION_ARCHETYPES } from './systems/ExtractionSystem.js';
 import { campaign3US } from './data/campaign_3_us.js?v=7';
 import { campaign4LZ } from './data/campaign_4_lz.js?v=1';
 
@@ -66,6 +67,7 @@ if (isBrowser) {
             <div class="status-badge" id="radio-status" style="border-color: var(--warning-yellow); color: var(--warning-yellow); display: none;">RADIO: NET READY</div>
             <div class="status-badge" id="enemy-status" style="border-color: var(--blood-red); color: #ff6b6b;">NVA: RECON</div>
             <div class="status-badge" id="ambush-status" style="border-color: var(--warning-yellow); color: var(--warning-yellow); display: none;">TENSION: ALERT</div>
+            <div class="status-badge" id="extraction-status" style="border-color: var(--terminal-green); color: var(--terminal-green); display: none;">EXTRACTION: READY</div>
           </div>
         </header>
 
@@ -251,6 +253,17 @@ const battlefieldRecoverySystem = new BattlefieldRecoverySystem(messageBus, {
   enemyCommander,
   journal
 });
+const extractionSystem = new ExtractionSystem(messageBus, {
+  squadManager,
+  ledger,
+  intelSystem,
+  reputationManager,
+  weatherSystem,
+  heroicActionManager,
+  enemyCommander,
+  woundedSoldierManager,
+  journal
+});
 const gameEngine = new GameEngine(messageBus);
 const combinedCampaign = { ...campaign3US, ...campaign4LZ };
 const sceneManager = new SceneManager(messageBus, combinedCampaign);
@@ -269,7 +282,8 @@ const saveManager = new SaveManager(messageBus, sceneManager, squadManager, ledg
   heroicActionManager,
   tacticalMapManager,
   woundedSoldierManager,
-  battlefieldRecoverySystem
+  battlefieldRecoverySystem,
+  extractionSystem
 });
 
 // 4. Update UI helpers
@@ -357,6 +371,152 @@ function updateAmbushUI() {
       ambushBadge.style.color = 'var(--warning-yellow)';
     } else {
       ambushBadge.style.display = 'none';
+    }
+  }
+}
+
+function updateExtractionUI() {
+  if (!isBrowser) return;
+  const extractionBadge = document.getElementById('extraction-status');
+  if (extractionBadge && extractionSystem) {
+    if (extractionSystem.executed) {
+      const summary = extractionSystem.getExtractionSummary();
+      extractionBadge.style.display = 'inline-block';
+      extractionBadge.textContent = `EXTRACTION: ${summary.name.toUpperCase()}`;
+      extractionBadge.style.borderColor = summary.badgeColor || 'var(--terminal-green)';
+      extractionBadge.style.color = summary.badgeColor || 'var(--terminal-green)';
+    } else if (extractionSystem.calculatedEnding) {
+      extractionBadge.style.display = 'inline-block';
+      extractionBadge.textContent = `EXTRACTION: ${extractionSystem.calculatedEnding.name.toUpperCase()}`;
+      extractionBadge.style.borderColor = 'var(--warning-yellow)';
+      extractionBadge.style.color = 'var(--warning-yellow)';
+    } else {
+      extractionBadge.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * UI hook for the Dynamic Extraction conclusion.
+ * Renders emergent war story summary, medal citations, survivors list, and fallen honors.
+ * @param {object} payload
+ */
+function renderExtractionConclusionUI(payload = {}) {
+  if (!isBrowser) return;
+
+  const narrativeEl = document.getElementById('narrative-text');
+  const choicesEl = document.getElementById('choices-container');
+  const locationEl = document.getElementById('scene-location');
+
+  if (locationEl) {
+    locationEl.textContent = '📍 LZ X-Ray / Airborne over Khe Sanh - Mission Debriefing';
+  }
+
+  const summary = payload.summary || extractionSystem.getExtractionSummary();
+  const epilogue = payload.epilogue || summary.epilogue || extractionSystem.generateWarStoryEpilogue();
+
+  if (narrativeEl) {
+    narrativeEl.innerHTML = `
+      <div style="border-bottom: 2px solid ${summary.badgeColor || 'var(--warning-yellow)'}; padding-bottom: 12px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <span style="font-family: 'Saira Condensed', sans-serif; font-size: 1.6rem; color: ${summary.badgeColor || 'var(--warning-yellow)'}; letter-spacing: 1.5px; text-transform: uppercase;">
+            ${summary.name.toUpperCase()}
+          </span>
+          <span class="status-badge" style="border-color: ${summary.badgeColor || 'var(--warning-yellow)'}; color: ${summary.badgeColor || 'var(--warning-yellow)'};">
+            RISK: ${summary.tacticalRisk?.toUpperCase() || 'EVALUATED'}
+          </span>
+        </div>
+        <div style="color: var(--dust-tan); font-size: 0.95rem; font-style: italic; margin-top: 4px;">
+          ${summary.subtitle}
+        </div>
+      </div>
+
+      <div style="color: var(--dust-tan); font-size: 0.95rem; line-height: 1.7; margin-bottom: 16px; white-space: pre-wrap;">
+        ${epilogue}
+      </div>
+    `;
+  }
+
+  if (choicesEl) {
+    choicesEl.innerHTML = `
+      <!-- Citations & Medals Section -->
+      ${summary.medals && summary.medals.length > 0 ? `
+        <div style="background: rgba(0, 0, 0, 0.4); border-left: 4px solid var(--warning-yellow); padding: 12px 16px; margin-bottom: 12px;">
+          <div style="font-family: 'Saira Condensed', sans-serif; font-size: 1.1rem; color: var(--warning-yellow); margin-bottom: 8px; text-transform: uppercase;">
+            🎖️ Official Military Decorations &amp; Citations (${summary.medals.length})
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${summary.medals.map(m => `
+              <div style="font-size: 0.85rem; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 6px;">
+                <span style="color: var(--warning-yellow); font-weight: bold;">${m.medal}</span>
+                <span style="color: var(--dust-tan);"> — ${m.soldierName}</span>
+                <div style="color: var(--smoke-gray); font-style: italic; font-size: 0.8rem; margin-top: 2px;">"${m.citationText}"</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Squad Roll Section (Survivors & Fallen) -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 16px;">
+        <!-- Survivors -->
+        <div style="background: rgba(0, 0, 0, 0.4); border-left: 4px solid var(--terminal-green); padding: 12px 16px;">
+          <div style="font-family: 'Saira Condensed', sans-serif; font-size: 1.1rem; color: var(--terminal-green); margin-bottom: 6px; text-transform: uppercase;">
+            ✓ Survivors Roll (${summary.survivorCount})
+          </div>
+          ${summary.survivors.length === 0 ? '<div style="font-size: 0.85rem; color: var(--smoke-gray);">No survivors recorded.</div>' : `
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem;">
+              ${summary.survivors.map(s => `
+                <li style="color: var(--dust-tan);">
+                  <strong>${s.name}</strong> <span style="color: var(--smoke-gray);">(${s.role})</span>
+                  ${s.conditions && s.conditions.length > 0 ? `<div style="color: #ff9800; font-size: 0.75rem;">Condition: ${s.conditions.join(', ')}</div>` : ''}
+                </li>
+              `).join('')}
+            </ul>
+          `}
+        </div>
+
+        <!-- Fallen Honors -->
+        <div style="background: rgba(0, 0, 0, 0.4); border-left: 4px solid var(--blood-red); padding: 12px 16px;">
+          <div style="font-family: 'Saira Condensed', sans-serif; font-size: 1.1rem; color: #ff6b6b; margin-bottom: 6px; text-transform: uppercase;">
+            ✝ Fallen Honors (${summary.fallenCount})
+          </div>
+          ${summary.fallen.length === 0 ? '<div style="font-size: 0.85rem; color: var(--terminal-green);">No casualties sustained during campaign.</div>' : `
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem;">
+              ${summary.fallen.map(f => `
+                <li style="color: #ff6b6b;">
+                  <strong>${f.name}</strong> <span style="color: var(--smoke-gray);">(${f.role})</span>
+                  <div style="color: var(--smoke-gray); font-size: 0.75rem;">Cause: ${f.cause}</div>
+                </li>
+              `).join('')}
+            </ul>
+          `}
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <button id="btn-restart-campaign" style="cursor: pointer; padding: 14px 20px; background: var(--blood-red); color: #ffffff; border: 2px solid #ffffff; font-family: inherit; font-size: 1rem; font-weight: bold; width: 100%; transition: all 0.2s ease;">
+        [ Start New Campaign / Re-deploy Squad ]
+      </button>
+    `;
+
+    const restartBtn = document.getElementById('btn-restart-campaign');
+    if (restartBtn) {
+      restartBtn.addEventListener('click', () => {
+        saveManager.clearSave();
+        ledger.reset();
+        squadManager.resetToDefault();
+        extractionSystem.calculatedEnding = null;
+        extractionSystem.executed = false;
+        extractionSystem.endingId = null;
+        extractionSystem.epilogue = null;
+        extractionSystem.summary = null;
+        sceneManager.loadScene('start');
+        updateLedgerUI();
+        updateSquadUI();
+        updateSaveStatusUI();
+        updateExtractionUI();
+      });
     }
   }
 }
@@ -519,6 +679,19 @@ messageBus.subscribe('TENSION_RESOLVED', () => {
   updateAmbushUI();
 });
 
+messageBus.subscribe('EXTRACTION_CALCULATED', () => {
+  updateExtractionUI();
+});
+
+messageBus.subscribe('EXTRACTION_BEGUN', () => {
+  updateExtractionUI();
+});
+
+messageBus.subscribe('EXTRACTION_CONCLUDED', (payload) => {
+  updateExtractionUI();
+  renderExtractionConclusionUI(payload);
+});
+
 // 6. Subscribe to SCENE_RENDERED for narrative and choices UI rendering
 messageBus.subscribe('SCENE_RENDERED', (payload) => {
   if (!isBrowser || !payload) return;
@@ -583,10 +756,18 @@ messageBus.subscribe('SCENE_RENDERED', (payload) => {
     }
 
     if (choices.length === 0) {
-      const endMsg = document.createElement('div');
-      endMsg.style.cssText = 'color: var(--smoke-gray); font-style: italic; padding: 8px;';
-      endMsg.textContent = 'Mission segment concluded. No further orders available.';
-      choicesEl.appendChild(endMsg);
+      if (payload.id === 'campaign_end' || payload.isExtraction || extractionSystem?.executed) {
+        if (!extractionSystem.executed) {
+          extractionSystem.executeExtraction();
+        } else {
+          renderExtractionConclusionUI({ summary: extractionSystem.getExtractionSummary() });
+        }
+      } else {
+        const endMsg = document.createElement('div');
+        endMsg.style.cssText = 'color: var(--smoke-gray); font-style: italic; padding: 8px;';
+        endMsg.textContent = 'Mission segment concluded. No further orders available.';
+        choicesEl.appendChild(endMsg);
+      }
     } else {
       choices.forEach((choice, index) => {
         const btn = document.createElement('button');
@@ -785,10 +966,16 @@ if (isBrowser) {
       saveManager.clearSave();
       ledger.reset();
       squadManager.resetToDefault();
+      extractionSystem.calculatedEnding = null;
+      extractionSystem.executed = false;
+      extractionSystem.endingId = null;
+      extractionSystem.epilogue = null;
+      extractionSystem.summary = null;
       sceneManager.loadScene('start');
       updateLedgerUI();
       updateSquadUI();
       updateSaveStatusUI();
+      updateExtractionUI();
     });
   }
 
@@ -816,6 +1003,7 @@ updateWeatherUI();
 updateRadioUI();
 updateEnemyUI();
 updateAmbushUI();
+updateExtractionUI();
 
 // 7. Boot the game engine and initialize scene flow
 gameEngine.init();
@@ -851,5 +1039,6 @@ export {
   heroicActionManager,
   tacticalMapManager,
   woundedSoldierManager,
-  battlefieldRecoverySystem
+  battlefieldRecoverySystem,
+  extractionSystem
 };

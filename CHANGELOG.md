@@ -1,6 +1,42 @@
 # Changelog: Squad Leader: Vietnam
 <!-- Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817 -->
 
+## [v3.0.0-phase6] - 2026-09-05
+
+- **Timestamp**: 2026-09-05T03:07:00-07:00 (PST)
+- **Modified Files**:
+  - `v2/index.html`
+  - `v2/src/core/SaveManager.js`
+  - `v2/src/main.js`
+  - `v2/src/systems/HeroicActionManager.js`
+  - `v2/src/systems/IntelSystem.js`
+  - `CATALOG.md`
+  - `CHANGELOG.md`
+- **Created Files**:
+  - `v2/src/systems/ExtractionSystem.js`
+  - `v2/test/phase6.test.js`
+- **Summary**:
+  - Implemented Phase 6 architecture of Squad Leader: Vietnam V3.
+  - **Dynamic Extraction Endgame (`ExtractionSystem.js`)**: Procedurally calculates and executes the LZ X-Ray extraction endgame based on cumulative campaign history across all 16 systems. Implements 6 dynamic ending archetypes:
+    * `clean_extraction`: Low heat (<= 35), clear weather, intact squad, high command reputation -> Clean liftoff, door gunners suppress woodline, all survivors make it home.
+    * `running_gunfight`: High heat (50-75), aggressive enemy probe -> Hot LZ, suppressive fire from huey door gunners, sprint across open field under mortar fire.
+    * `helicopter_shot_down`: Extreme enemy aggression (>= 75) with anti-air or thunderstorm -> Extraction bird takes RPG hit during approach/hover, forced crash-landing in perimeter, immediate defense and secondary lift.
+    * `last_stand`: Max heat (>= 80), depleted supplies (<= 15), enemy Full Assault -> Overrun LZ, defensive perimeter collapse, broken arrow call, heroic sacrifices.
+    * `rear_guard_sacrifice`: Surviving wounded personnel, hostile pursuit -> One soldier stays behind to hold the tree line with machine gun, enabling extraction bird liftoff.
+    * `split_evacuation`: Large squad with wounded, adverse weather, limited lift -> Huey can only take half the squad, first lift leaves wounded + medic, second bird delayed.
+  - **Emergent War Story Generation**: Epilogue narratives dynamically weave in names of surviving and fallen squad members, specific heroic acts ("Washington died saving Jenkins"), weather conditions, and command doctrine.
+  - **Full Execution Lifecycle**: Triggers KIA casualties on sacrifices, awards Medal of Honor / Distinguished Service Cross decorations, records military logs in Journal, and broadcasts lifecycle events (`EXTRACTION_CALCULATED`, `EXTRACTION_STARTED`, `EXTRACTION_RESOLVED`, `EXTRACTION_EVACUATED`, `EXTRACTION_FALLEN`, `EXTRACTION_HEROIC_SACRIFICE`, and `EXTRACTION_COMPLETED`).
+  - **Master Save/Load Round-Trip Persistence (`SaveManager.js`)**: Integrated `ExtractionSystem` into SaveManager, completing state serialization and restoration across ALL 16 core architectural systems (`SceneManager`, `SquadManager`, `Ledger`, `RelationshipManager`, `TraitManager`, `Journal`, `PsychologicalConditionManager`, `ReputationManager`, `DynamicEventManager`, `WeatherSystem`, `RadioSystem`, `IntelSystem`, `EnemyCommander`, `AmbushSystem`, `HeroicActionManager`, `TacticalMapManager`, `WoundedSoldierManager`, `BattlefieldRecoverySystem`, `ExtractionSystem`).
+  - **Main Composition Root & Endgame UI (`main.js`, `index.html`)**: Added `#extraction-status` badge to HUD header, implemented `renderExtractionConclusionUI()` modal presenting the War Story Epilogue, official citations, honored fallen heroes list, survivor roster, and campaign restart/replay controls. Cache-busted script import to `main.js?v=8`.
+  - **System Ergonomics & Aliases (`HeroicActionManager.js`, `IntelSystem.js`)**: Added `getMedals()` and medal field aliases (`medal`, `citationText`) to HeroicActionManager; added `getDiscoveries()` and `getState()` to IntelSystem to ensure flawless cross-system integration.
+  - **Automated Test Suite (`phase6.test.js`)**: Created 16 comprehensive automated unit and integration tests using Node.js native `node:test` runner covering all 6 ending archetypes, execution lifecycles, emergent war stories, state serialization, master save/load across all 16 systems with 100% fidelity, and full cross-system MessageBus integration.
+- **Reason**:
+  - Deliver the climactic final chapter of Squad Leader: Vietnam V3, ensuring every choice, casualty, heroic action, and environmental challenge culminates in a meaningful, emergent narrative ending with complete persistence across all systems.
+- **Impact**:
+  - 100% test pass rate across all 134 automated tests (27 Phase 1 + 21 Phase 2 + 21 Phase 3 + 26 Phase 4 + 23 Phase 5 + 16 Phase 6) with zero regressions on existing systems.
+
+---
+
 ## [v3.0.0-phase5] - 2026-09-05
 
 - **Timestamp**: 2026-09-05T02:54:00-07:00 (PST)

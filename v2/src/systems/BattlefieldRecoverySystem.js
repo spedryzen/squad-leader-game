@@ -387,6 +387,7 @@ export class BattlefieldRecoverySystem {
       this.messageBus.publish('RECOVERY_EXECUTED', {
         record,
         optionKey,
+        action: optionKey,
         definition: def,
         rewardsApplied,
         heatCost

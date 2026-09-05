@@ -308,8 +308,14 @@ const extractionSystem = new ExtractionSystem(messageBus, {
   journal
 });
 const gameEngine = new GameEngine(messageBus);
-const combinedCampaign = { ...campaign3US, ...campaign4LZ };
-const sceneManager = new SceneManager(messageBus, combinedCampaign);
+const sceneManager = new SceneManager(messageBus, combinedCampaign, {
+  reputationManager,
+  squadManager,
+  traitManager,
+  intelSystem,
+  weatherSystem,
+  ledger
+});
 const saveManager = new SaveManager(messageBus, sceneManager, squadManager, ledger, 'squadLeaderSave', {
   relationshipManager,
   traitManager,
@@ -1632,16 +1638,17 @@ messageBus.subscribe('SCENE_RENDERED', (payload) => {
           line-height: 1.4;
         `;
 
-        // Check soldier requirements if applicable
-        let isDisabled = false;
-        let reqWarning = '';
-        if (choice.requirements && choice.requirements.alive) {
-          const reqSoldier = squadManager.getSoldierById(choice.requirements.alive);
-          if (reqSoldier && !reqSoldier.isAlive) {
-            isDisabled = true;
-            reqWarning = ` [UNAVAILABLE: ${reqSoldier.name} KIA]`;
-          }
-        }
+        // Evaluate choice requirements (reputation, trait, intelTier, notWeather, alive, stats)
+        const evaluation = sceneManager.evaluateChoiceRequirements(choice, {
+          reputationManager,
+          squadManager,
+          traitManager,
+          intelSystem,
+          weatherSystem,
+          ledger
+        });
+        const isDisabled = !evaluation.available;
+        const reqWarning = evaluation.reason ? ` ${evaluation.reason}` : '';
 
         if (isDisabled) {
           btn.disabled = true;

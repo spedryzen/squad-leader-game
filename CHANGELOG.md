@@ -1,6 +1,57 @@
 # Changelog: Squad Leader: Vietnam
 <!-- Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817 -->
 
+## [v3.3.0-campaign-enrichment] - 2026-09-05
+
+- **Timestamp**: 2026-09-05T04:00:00-07:00 (PST)
+- **Modified Files**:
+  - `v2/src/core/SceneManager.js`
+  - `v2/src/main.js`
+  - `v2/src/data/campaign_3_us.js`
+  - `v2/src/data/campaign_4_lz.js`
+  - `v2/src/systems/WoundedSoldierManager.js`
+  - `v2/src/systems/BattlefieldRecoverySystem.js`
+  - `CATALOG.md`
+  - `CHANGELOG.md`
+- **Created Files**:
+  - `v2/test/campaign_enrichment.test.js`
+- **Summary**:
+  - Implemented **Option 3: Campaign Narrative & Encounter Enrichment** across Squad Leader: Vietnam V3.
+  - **Expanded Choice Requirements Gating (`SceneManager.js` & `main.js`)**:
+    * Implemented `evaluateChoiceRequirements(choice, context)`, `isChoiceAvailable(choice, context)`, and `getChoiceLockReason(choice, context)` in `SceneManager.js`.
+    * Added dependency injection via `setSystems()` for `reputationManager`, `squadManager`, `traitManager`, `intelSystem`, `weatherSystem`, and `ledger`.
+    * Implemented gating on `requirements.reputation`: Requires primary doctrine or doctrine score >= 40 (e.g. "Jungle Ghost", "Aggressive", "Tactical", "Protector").
+    * Implemented gating on `requirements.trait`: Requires at least one living squad member possessing the trait (e.g. "Calm Under Fire", "Combat Lifesaver", "Jungle Hunter", "Sharpshooter").
+    * Implemented gating on `requirements.intelTier`: Requires minimum Intel Tier ("LOW", "MEDIUM", "HIGH").
+    * Implemented gating on `requirements.notWeather`: Choice unavailable in specified adverse weather conditions (e.g. air strike grounded in "Monsoon" or "Thunderstorm").
+    * Updated `main.js` choice button rendering loop to evaluate requirements, disable buttons when locked, apply muted styling, and append descriptive lock reason badges (`[LOCKED: JUNGLE GHOST DOCTRINE REQUIRED]`, `[LOCKED: HIGH INTEL REQUIRED]`, `[LOCKED: CALM UNDER FIRE REQUIRED]`, `[LOCKED: AIR SUPPORT GROUNDED IN MONSOON]`).
+  - **Campaign 3 (Khe Sanh / Hill 881) Enrichment (`campaign_3_us.js`)**:
+    * In `start`: Set weather to "Fog" and added incoming India Six HQ radio transmission pinging suspicious enemy movement.
+    * In `mist_patrol_duke`: Integrated `TRAIT_DISCOVERED` ("Jungle Hunter") reward opportunity.
+    * In `woodline_probe`: Added Claustrophobic crisis trigger and Combat Lifesaver point-man rescue opportunity.
+    * In `sapper_contact`: Sapper charge explosion wounds Torres, firing `SOLDIER_WOUNDED` with severe blast trauma.
+    * In `trench_defense`: Added four agonizing triage command choices: Carry Torres to bunker, Doc Baker field stabilize (awarding Silver Star), radio Dustoff medevac (spiking Heat +25), or abandon Torres in trench (inflicting Survivor's Guilt).
+    * In `forward_push`, `enemy_flank`, and `close_quarters_trench`: Added 4 doctrine-gated tactical choices (`Jungle Ghost`, `Aggressive`, `Tactical`, `Protector`).
+    * In `mortar_barrage`: Weather shifts dynamically to "Heavy Rain" and added `Calm Under Fire` counter-battery opportunity.
+    * In `dawn_repulse`: Added post-combat recovery scavenging choices (`dawn_recover_documents`, `dawn_search_ammo`, `dawn_evacuate_fallen`) hooking directly into `BattlefieldRecoverySystem`.
+  - **Campaign 4 (LZ Extraction) Enrichment (`campaign_4_lz.js`)**:
+    * In `lz_start`: Added weather shift and urgent Dustoff 2-1 radio message with extraction window countdown.
+    * In `lz_ambush`: Added ambush warning, Medium Intel flank counter, Sharpshooter RPG counter, and `notWeather` air support lock during storms.
+    * In `lz_clearing`: Added post-combat ACAV recovery options (`recovery_salvage_50cal`, `recovery_courier_satchel`, `recovery_rescue_crew`) linked with `BattlefieldRecoverySystem`.
+    * In `lz_arrival`: Added rear-guard sacrifice extraction choice firing `EXTRACTION_HEROIC_SACRIFICE` alongside standard all-aboard extraction.
+  - **System Integrations (`WoundedSoldierManager.js` & `BattlefieldRecoverySystem.js`)**:
+    * Added `SOLDIER_WOUNDED` subscription and `getWoundedRecord(soldierId)` to `WoundedSoldierManager`.
+    * Added `action: optionKey` to `RECOVERY_EXECUTED` payload and added `postCombat`/`recoveryAvailable` flags to post-combat scenes.
+  - **Automated Verification (`campaign_enrichment.test.js`)**:
+    * Created comprehensive 14-test verification suite covering choice requirement gating, triage event flows, recovery scavenging, weather transitions, and endgame extraction sacrifice.
+- **Reason**:
+  - Deliver deep systemic integration between the narrative scenario graphs and the advanced gameplay subsystems (WoundedSoldierManager, BattlefieldRecoverySystem, IntelSystem, WeatherSystem, ReputationManager, TraitManager, HeroicActionManager, ExtractionSystem).
+- **Impact**:
+  - Every campaign scene actively exercises deep gameplay subsystems and presents consequence-driven player decisions with immediate feedback.
+  - 100% test pass rate across all 151 automated tests (44 test suites) with zero regressions.
+
+---
+
 ## [v3.2.0-backend-persistence] - 2026-09-05
 
 - **Timestamp**: 2026-09-05T03:50:00-07:00 (PST)

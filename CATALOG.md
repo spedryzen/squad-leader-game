@@ -30,9 +30,13 @@ This catalog documents the modules, scripts, and documentation files within the 
 - **Outputs**: Publishes `GAME_BOOTED` (with timestamp and engine reference) and `GAME_STOPPED` events over the message bus.
 
 ### `v2/src/core/SceneManager.js`
-- **Description**: Manages narrative progression, scene loading, and decision tree branching. Listens for `CHOICE_MADE` events, executes choice side-effect events over the MessageBus, and broadcasts `CHOICE_RESOLUTION` and `SCENE_RENDERED` events.
+- **Description**: Manages narrative progression, scene loading, decision tree branching, and dynamic choice requirements gating. Evaluates requirements including reputation doctrine (`requirements.reputation`), living squad traits (`requirements.trait`), intelligence tier thresholds (`requirements.intelTier`), and weather restrictions (`requirements.notWeather`). Listens for `CHOICE_MADE` events, executes choice side-effect events over the MessageBus, and broadcasts `CHOICE_RESOLUTION` and `SCENE_RENDERED` events.
 - **Inputs**:
-  - `constructor(messageBus: MessageBus, sceneData?: object)`: MessageBus instance and scene definitions dictionary.
+  - `constructor(messageBus: MessageBus, sceneData?: object, systems?: object)`: MessageBus instance, scene definitions dictionary, and optional system references.
+  - `setSystems(systems: object)`: Injects or updates system references (`reputationManager`, `squadManager`, `traitManager`, `intelSystem`, `weatherSystem`, `ledger`).
+  - `evaluateChoiceRequirements(choice: object, context?: object)`: Returns `{ available: boolean, reason: string|null }` evaluating all gating constraints.
+  - `isChoiceAvailable(choice: object, context?: object)`: Boolean helper returning true if all requirements are met.
+  - `getChoiceLockReason(choice: object, context?: object)`: Returns human-readable lock reason tag (e.g. `[LOCKED: JUNGLE GHOST DOCTRINE REQUIRED]`, `[LOCKED: AIR SUPPORT GROUNDED IN MONSOON]`).
   - Event `CHOICE_MADE`: Receives choice identifier/payload, extracts choice events, and triggers next scene navigation.
   - `loadScene(sceneId: string)`: Resolves scene definition and publishes `SCENE_RENDERED`.
   - `getScene(sceneId: string)` / `getCurrentScene()` / `getCurrentSceneId()` / `setSceneData(sceneData: object)`: Scene query and management methods.
@@ -372,6 +376,11 @@ This catalog documents the modules, scripts, and documentation files within the 
 - **Description**: Automated unit and integration test suite validating SaveManager REST API methods and live HTTP server endpoints (`POST /api/save`, `GET /api/load`, `POST /api/clear`, `GET /api/status`).
 - **Inputs**: `npm test` or `node --test v2/test/backend_save.test.js`.
 - **Outputs**: Executes 3 test cases validating `restoreState()`, multi-system deserialization, live REST round-trip persistence to server disk, atomic save verification, and HTTP 404 handling.
+
+### `v2/test/campaign_enrichment.test.js`
+- **Description**: Automated unit and integration test suite using Node.js built-in `node:test` and `node:assert/strict` validating Option 3: Campaign Narrative & Encounter Enrichment.
+- **Inputs**: `npm test` or `node --test v2/test/campaign_enrichment.test.js`.
+- **Outputs**: Executes 14 test cases across 5 test suites validating expanded choice requirement gating (reputation doctrine, squad traits, intel tier, weather constraints), combat triage decisions and events (Torres sapper wounding, carry, Doc Baker field stabilize/Silver Star, medevac, abandonment), post-combat battlefield recovery scavenging (Hill 881 sapper docs/ammo and Highway 9 ACAV salvage), atmospheric weather shifts, radio communications, and extraction endgame sacrifice.
 
 ## Backend Server & Persistence Layer
 

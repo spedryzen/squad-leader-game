@@ -118,6 +118,15 @@ export class WoundedSoldierManager {
       }
     });
 
+    // 1b. SOLDIER_WOUNDED: Direct registration if emitted from scene choices or external systems
+    this.messageBus.subscribe('SOLDIER_WOUNDED', (payload) => {
+      if (!payload || typeof payload !== 'object') return;
+      const soldierId = payload.soldierId || payload.id || (typeof payload.soldier === 'string' ? payload.soldier : payload.soldier?.id);
+      if (soldierId && !this.woundedSoldiers.has(String(soldierId).toLowerCase())) {
+        this.woundSoldier(soldierId, payload.severity || 'moderate', payload.details || payload);
+      }
+    });
+
     // 2. CHOICE_MADE: Process embedded triage decisions
     this.messageBus.subscribe('CHOICE_MADE', (payload) => {
       if (!payload || typeof payload !== 'object') return;
@@ -485,6 +494,17 @@ export class WoundedSoldierManager {
    */
   getWoundedSoldiers() {
     return Array.from(this.woundedSoldiers.values()).map((r) => ({ ...r }));
+  }
+
+  /**
+   * Retrieves a wounded record by soldier ID.
+   * @param {string} soldierId - Unique soldier identifier.
+   * @returns {object|null} Shallow copy of wounded record, or null if not found.
+   */
+  getWoundedRecord(soldierId) {
+    if (!soldierId) return null;
+    const rec = this.woundedSoldiers.get(String(soldierId).toLowerCase());
+    return rec ? { ...rec } : null;
   }
 
   /**

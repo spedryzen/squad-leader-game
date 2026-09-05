@@ -1,3 +1,5 @@
 .DS_Store
 .server.pid
 server.log
+saves/
+__pycache__/

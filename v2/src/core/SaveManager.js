@@ -196,6 +196,13 @@ export class SaveManager {
       }
     }
 
+    // Fire background sync to backend server if in browser environment
+    if (typeof window !== 'undefined' && typeof fetch === 'function') {
+      this.syncToBackend(saveData).catch((err) => {
+        console.warn('SaveManager: Background server sync error:', err);
+      });
+    }
+
     if (this.messageBus && typeof this.messageBus.publish === 'function') {
       this.messageBus.publish('GAME_SAVED', saveData);
     }
@@ -232,13 +239,13 @@ export class SaveManager {
   }
 
   /**
-   * Loads game state from localStorage and restores managers.
-   * Publishes GAME_LOADED event over the MessageBus.
-   * @returns {object|null} The loaded state or null if no save existed.
+   * Restores all campaign systems from a provided saveData snapshot object.
+   * Publishes GAME_LOADED event over MessageBus.
+   * @param {object} saveData - Serialized campaign snapshot.
+   * @returns {object|null} The restored state or null if invalid.
    */
-  loadGame() {
-    const saveData = this.getSaveData();
-    if (!saveData) {
+  restoreState(saveData) {
+    if (!saveData || typeof saveData !== 'object') {
       return null;
     }
 
@@ -342,7 +349,129 @@ export class SaveManager {
   }
 
   /**
-   * Deletes the save record from localStorage and broadcasts SAVE_CLEARED event.
+   * Loads game state from localStorage and restores managers.
+   * Publishes GAME_LOADED event over the MessageBus.
+   * @returns {object|null} The loaded state or null if no save existed.
+   */
+  loadGame() {
+    const saveData = this.getSaveData();
+    if (!saveData) {
+      return null;
+    }
+    return this.restoreState(saveData);
+  }
+
+  /**
+   * Persists save snapshot to the persistent backend REST API (POST /api/save).
+   * Safe for both browser and Node.js environments.
+   * @param {object} [saveData] - Snapshot data. If omitted, current getSaveData() is used.
+   * @returns {Promise<object>} Result payload indicating success or failure.
+   */
+  async syncToBackend(saveData = null) {
+    if (typeof fetch === 'undefined') {
+      return { success: false, error: 'fetch API is not available' };
+    }
+
+    const dataToSync = saveData || this.getSaveData();
+    if (!dataToSync) {
+      return { success: false, error: 'No save data available to sync' };
+    }
+
+    try {
+      const response = await fetch('/api/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(dataToSync)
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+
+      const errorText = await response.text();
+      return {
+        success: false,
+        status: response.status,
+        error: errorText || `HTTP ${response.status}`
+      };
+    } catch (err) {
+      console.warn('SaveManager: Failed to sync save state to backend server', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Loads game state from the persistent backend REST API (GET /api/load).
+   * Restores all systems and updates local cache.
+   * @returns {Promise<object|null>} The loaded state or null if not found/unreachable.
+   */
+  async loadFromBackend() {
+    if (typeof fetch === 'undefined') {
+      return null;
+    }
+
+    try {
+      const response = await fetch('/api/load', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const result = await response.json();
+      if (result && result.success && result.data) {
+        // Synchronize local storage with backend disk state
+        if (this.isStorageAvailable()) {
+          try {
+            localStorage.setItem(this.storageKey, JSON.stringify(result.data));
+          } catch {
+            // Non-fatal localStorage error
+          }
+        }
+        return this.restoreState(result.data);
+      }
+    } catch (err) {
+      console.warn('SaveManager: Failed to load save state from backend server', err);
+    }
+    return null;
+  }
+
+  /**
+   * Sends clear request to the persistent backend REST API (POST /api/clear).
+   * @returns {Promise<object>}
+   */
+  async clearBackendSave() {
+    if (typeof fetch === 'undefined') {
+      return { success: false, error: 'fetch API is not available' };
+    }
+
+    try {
+      const response = await fetch('/api/clear', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+      return { success: false, status: response.status };
+    } catch (err) {
+      console.warn('SaveManager: Failed to clear backend server save', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Deletes the save record from localStorage and backend server,
+   * and broadcasts SAVE_CLEARED event.
    * @returns {boolean}
    */
   clearSave() {
@@ -350,8 +479,15 @@ export class SaveManager {
       try {
         localStorage.removeItem(this.storageKey);
       } catch (err) {
-        console.warn('SaveManager: Failed to clear save data', err);
+        console.warn('SaveManager: Failed to clear save data from localStorage', err);
       }
+    }
+
+    // Trigger backend clear in background if in browser
+    if (typeof window !== 'undefined' && typeof fetch === 'function') {
+      this.clearBackendSave().catch((err) => {
+        console.warn('SaveManager: Background backend save clear failed', err);
+      });
     }
 
     if (this.messageBus && typeof this.messageBus.publish === 'function') {

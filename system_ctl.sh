@@ -11,7 +11,7 @@ start() {
         return
     fi
     echo "Starting Squad Leader: Vietnam server on port $PORT..."
-    python3 -m http.server $PORT --bind 127.0.0.1 > server.log 2>&1 &
+    python3 server.py $PORT > server.log 2>&1 &
     echo $! > "$PID_FILE"
     echo "Server started!"
     echo "Play the game at: http://127.0.0.1:$PORT/v2/index.html"

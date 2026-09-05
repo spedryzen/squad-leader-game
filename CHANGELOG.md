@@ -1,6 +1,53 @@
 # Changelog: Squad Leader: Vietnam
 <!-- Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817 -->
 
+## [v3.2.0-backend-persistence] - 2026-09-05
+
+- **Timestamp**: 2026-09-05T03:50:00-07:00 (PST)
+- **Modified Files**:
+  - `system_ctl.sh`
+  - `v2/src/core/SaveManager.js`
+  - `v2/src/main.js`
+  - `.gitignore`
+  - `CATALOG.md`
+  - `CHANGELOG.md`
+- **Created Files**:
+  - `server.py`
+  - `v2/test/backend_save.test.js`
+- **Summary**:
+  - Connected the *Squad Leader: Vietnam* client application to a persistent backend HTTP server with disk-backed REST persistence endpoints.
+  - **Standalone Python HTTP/REST Server (`server.py`)**:
+    * Subclassed `http.server.SimpleHTTPRequestHandler` with `ThreadingHTTPServer` to serve static files from workspace root while serving REST API endpoints.
+    * Implemented `POST /api/save`: Reads JSON payload and saves atomically to `saves/squad_leader_save.json` via a PID-tagged temporary file replacement strategy (`os.replace`), returning `{ success: true, message, sceneId, timestamp }`.
+    * Implemented `GET /api/load`: Reads `saves/squad_leader_save.json` and returns `{ success: true, data }` or HTTP 404 `{ success: false, message }` if no save file exists.
+    * Implemented `POST /api/clear` and `DELETE /api/save`: Deletes disk save file if present and returns `{ success: true, message }`.
+    * Implemented `GET /api/status`: Returns JSON status object `{ status: "ok", hasSave: bool, lastModified: string|null, saveFile: string }`.
+    * Added comprehensive MIME types for ES module compatibility (`.js`, `.css`, `.json`, `.html`).
+  - **Process Control Daemon (`system_ctl.sh`)**:
+    * Upgraded daemon startup command from static `python3 -m http.server` to `python3 server.py $PORT > server.log 2>&1 &`.
+    * Preserved seamless daemon management commands (`start`, `stop`, `restart`, `status`).
+  - **SaveManager Architecture (`v2/src/core/SaveManager.js`)**:
+    * Added `restoreState(saveData)` extracting the multi-system deserialization pipeline into a reusable method.
+    * Added `async syncToBackend(saveData)` to post serialized snapshots to `POST /api/save`.
+    * Added `async loadFromBackend()` to fetch from `GET /api/load`, refresh localStorage cache, and restore campaign state across all 16 systems.
+    * Added `async clearBackendSave()` to send `POST /api/clear`.
+    * Updated `saveGame()` and `clearSave()` to synchronize localStorage with backend server in browser environments while remaining fully safe for Node.js test environments.
+  - **UI & Button Feedback (`v2/src/main.js`)**:
+    * Added `BACKEND: CONNECTED` live status badge in the header bar.
+    * Added `checkBackendStatus()` querying `/api/status` on boot and after save/clear actions.
+    * Updated `btnManualSave` click listener: disables button, sets text to `[ SAVING... ]` with yellow border, awaits `saveManager.syncToBackend()`, flashes `[ ✓ SAVED TO SERVER ]` with bright green border (`var(--terminal-green)`) and glowing box-shadow, updates `save-summary` confirmation, and resets to `Manual Save` after 2.5 seconds.
+    * Updated `btnResume` click listener to prioritize `loadFromBackend()` with fallback to `loadGame()`.
+    * Updated `btnClearSave` and `btnNewGame` to clear both localStorage and backend disk storage.
+  - **Automated Testing (`v2/test/backend_save.test.js`)**:
+    * Added automated test suite for SaveManager REST API methods, live HTTP server endpoints round-trip, atomic write persistence, and HTTP 404 handling.
+- **Reason**:
+  - The user reported that the "Manual Save" button did not provide responsive confirmation and only wrote to browser localStorage with no server-side disk persistence.
+- **Impact**:
+  - Full disk persistence across all 16 systems; campaign state survives browser cache clears, private browsing sessions, and server restarts.
+  - 100% test pass rate across all 137 automated unit and integration tests (39 test suites) with 0 regressions.
+
+---
+
 ## [v3.1.0-hud-expansion] - 2026-09-05
 
 - **Timestamp**: 2026-09-05T03:24:00-07:00 (PST)

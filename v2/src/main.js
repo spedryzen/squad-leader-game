@@ -62,6 +62,7 @@ if (isBrowser) {
           <div class="subtitle">v3 Advanced Tactical Command &amp; Operations</div>
           <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
             <div class="status-badge" id="system-status">STATUS: INITIALIZING...</div>
+            <div class="status-badge" id="backend-status" style="border-color: var(--smoke-gray); color: var(--smoke-gray);">BACKEND: CONNECTING...</div>
             <div class="status-badge" id="save-status" style="border-color: var(--smoke-gray); color: var(--smoke-gray);">AUTO-SAVE: READY</div>
             <div class="status-badge" id="weather-status" style="border-color: var(--radio-green); color: var(--terminal-green);">WEATHER: CLEAR</div>
             <div class="status-badge" id="radio-status" style="border-color: var(--warning-yellow); color: var(--warning-yellow); display: none;">RADIO: NET READY</div>
@@ -1309,6 +1310,39 @@ function updateSquadUI() {
   renderDossierUI();
 }
 
+async function checkBackendStatus() {
+  if (!isBrowser) return null;
+  const backendStatusEl = document.getElementById('backend-status');
+  try {
+    const res = await fetch('/api/status');
+    if (res.ok) {
+      const data = await res.json();
+      if (backendStatusEl) {
+        backendStatusEl.textContent = data.hasSave ? 'BACKEND: CONNECTED [SAVE ON DISK]' : 'BACKEND: CONNECTED';
+        backendStatusEl.style.borderColor = 'var(--radio-green)';
+        backendStatusEl.style.color = 'var(--terminal-green)';
+      }
+      if (data.hasSave && !saveManager.hasSave()) {
+        const btnResume = document.getElementById('btn-resume-game');
+        if (btnResume) {
+          btnResume.disabled = false;
+          btnResume.style.opacity = '1';
+          btnResume.style.cursor = 'pointer';
+          btnResume.title = 'Resume saved campaign from server disk';
+        }
+      }
+      return data;
+    }
+  } catch {
+    if (backendStatusEl) {
+      backendStatusEl.textContent = 'BACKEND: OFFLINE (LOCAL ONLY)';
+      backendStatusEl.style.borderColor = 'var(--smoke-gray)';
+      backendStatusEl.style.color = 'var(--smoke-gray)';
+    }
+  }
+  return null;
+}
+
 function updateSaveStatusUI() {
   if (!isBrowser) return;
   const saveStatusEl = document.getElementById('save-status');
@@ -1333,7 +1367,7 @@ function updateSaveStatusUI() {
   if (saveSummaryEl) {
     if (hasSave && saveData) {
       const timeStr = saveData.timestamp ? new Date(saveData.timestamp).toLocaleTimeString() : 'Unknown';
-      saveSummaryEl.textContent = `Saved: Scene "${saveData.sceneId}" at ${timeStr}`;
+      saveSummaryEl.textContent = `Saved to Server: Scene "${saveData.sceneId}" at ${timeStr}`;
     } else {
       saveSummaryEl.textContent = 'No save file recorded.';
     }
@@ -1785,17 +1819,25 @@ if (isBrowser) {
   // Save / Flow Controls
   const btnResume = document.getElementById('btn-resume-game');
   if (btnResume) {
-    btnResume.addEventListener('click', () => {
-      if (saveManager.hasSave()) {
-        saveManager.loadGame();
+    btnResume.addEventListener('click', async () => {
+      btnResume.disabled = true;
+      btnResume.textContent = '[ LOADING... ]';
+      let loaded = await saveManager.loadFromBackend();
+      if (!loaded && saveManager.hasSave()) {
+        loaded = saveManager.loadGame();
       }
+      btnResume.textContent = 'Resume Game';
+      btnResume.disabled = false;
+      updateSaveStatusUI();
+      checkBackendStatus();
     });
   }
 
   const btnNewGame = document.getElementById('btn-new-game');
   if (btnNewGame) {
-    btnNewGame.addEventListener('click', () => {
+    btnNewGame.addEventListener('click', async () => {
       saveManager.clearSave();
+      await saveManager.clearBackendSave();
       ledger.reset();
       squadManager.resetToDefault();
       extractionSystem.calculatedEnding = null;
@@ -1807,6 +1849,7 @@ if (isBrowser) {
       updateLedgerUI();
       updateSquadUI();
       updateSaveStatusUI();
+      checkBackendStatus();
       updateExtractionUI();
       renderJournalUI();
       renderTacticalMapUI();
@@ -1816,17 +1859,62 @@ if (isBrowser) {
 
   const btnManualSave = document.getElementById('btn-manual-save');
   if (btnManualSave) {
-    btnManualSave.addEventListener('click', () => {
-      saveManager.saveGame();
+    btnManualSave.addEventListener('click', async () => {
+      // 1. Disable button, set text to [ SAVING... ] with yellow border
+      btnManualSave.disabled = true;
+      const originalText = 'Manual Save';
+      const originalBorder = btnManualSave.style.border || '1px solid var(--radio-green)';
+      const originalColor = btnManualSave.style.color || 'var(--dust-tan)';
+      const originalShadow = btnManualSave.style.boxShadow || 'none';
+
+      btnManualSave.textContent = '[ SAVING... ]';
+      btnManualSave.style.border = '1px solid var(--warning-yellow)';
+      btnManualSave.style.color = 'var(--warning-yellow)';
+
+      // 2. Call saveGame() and syncToBackend()
+      const saveData = saveManager.saveGame();
+      const syncResult = await saveManager.syncToBackend(saveData);
+
+      // 3. Set button text to [ ✓ SAVED TO SERVER ] with bright green border and glowing color
+      if (syncResult && syncResult.success) {
+        btnManualSave.textContent = '[ ✓ SAVED TO SERVER ]';
+        btnManualSave.style.border = '1px solid var(--terminal-green)';
+        btnManualSave.style.color = 'var(--terminal-green)';
+        btnManualSave.style.boxShadow = '0 0 10px rgba(74, 246, 38, 0.6)';
+      } else {
+        btnManualSave.textContent = '[ ✓ SAVED LOCALLY ]';
+        btnManualSave.style.border = '1px solid var(--radio-green)';
+        btnManualSave.style.color = 'var(--terminal-green)';
+      }
+
+      // 4. Update save-summary text with confirmation
+      const saveSummaryEl = document.getElementById('save-summary');
+      if (saveSummaryEl && saveData) {
+        const timeStr = saveData.timestamp ? new Date(saveData.timestamp).toLocaleTimeString() : 'Unknown';
+        saveSummaryEl.textContent = `Saved to Server: Scene "${saveData.sceneId}" at ${timeStr}`;
+      }
+
       updateSaveStatusUI();
+      checkBackendStatus();
+
+      // 5. After 2.5 seconds, re-enable button and restore text Manual Save
+      setTimeout(() => {
+        btnManualSave.textContent = originalText;
+        btnManualSave.style.border = originalBorder;
+        btnManualSave.style.color = originalColor;
+        btnManualSave.style.boxShadow = originalShadow;
+        btnManualSave.disabled = false;
+      }, 2500);
     });
   }
 
   const btnClearSave = document.getElementById('btn-clear-save');
   if (btnClearSave) {
-    btnClearSave.addEventListener('click', () => {
+    btnClearSave.addEventListener('click', async () => {
       saveManager.clearSave();
+      await saveManager.clearBackendSave();
       updateSaveStatusUI();
+      checkBackendStatus();
     });
   }
 }
@@ -1854,6 +1942,7 @@ if (saveManager.hasSave()) {
 }
 
 updateSaveStatusUI();
+checkBackendStatus();
 
 // Export wired instances for debugging / inspection / tests
 export {

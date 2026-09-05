@@ -39,16 +39,20 @@ This catalog documents the modules, scripts, and documentation files within the 
 - **Outputs**: Publishes `SCENE_RENDERED` with scene payload data and dispatches choice-specific lifecycle events over the MessageBus.
 
 ### `v2/src/core/SaveManager.js`
-- **Description**: Auto-save and state persistence manager utilizing HTML5 `localStorage`. Subscribes to `SCENE_RENDERED` to serialize progress across all 16 campaign systems (scene ID, ledger stats, squad roster, relationships, traits, journal entries, conditions, reputation, dynamic events, weather, radio, intel, enemy commander AI, ambush encounters, heroic actions/medals, tactical map markers/path, wounded soldier status/carriers, battlefield recovery history, and dynamic extraction state), saving snapshot records under key `squadLeaderSave`. Provides `loadGame()`, `saveGame()`, `hasSave()`, and `clearSave()` methods, and broadcasts `GAME_SAVED`, `GAME_LOADED`, and `SAVE_CLEARED` events.
+- **Description**: Auto-save and state persistence manager coordinating both HTML5 `localStorage` and server-side disk persistence via REST API. Subscribes to `SCENE_RENDERED` to serialize progress across all 16 campaign systems (scene ID, ledger stats, squad roster, relationships, traits, journal entries, conditions, reputation, dynamic events, weather, radio, intel, enemy commander AI, ambush encounters, heroic actions/medals, tactical map markers/path, wounded soldier status/carriers, battlefield recovery history, and dynamic extraction state), saving snapshot records under key `squadLeaderSave` and syncing to `/api/save`. Provides `loadGame()`, `saveGame()`, `hasSave()`, `clearSave()`, `restoreState(saveData)`, `syncToBackend(saveData)`, `loadFromBackend()`, and `clearBackendSave()` methods, and broadcasts `GAME_SAVED`, `GAME_LOADED`, and `SAVE_CLEARED` events.
 - **Inputs**:
   - `constructor(messageBus: MessageBus, sceneManager: SceneManager, squadManager: SquadManager, ledger: Ledger, storageKey?: string, systems?: object)`: System manager instances, storage key name, and optional system references (`relationshipManager`, `traitManager`, `journal`, `conditionManager`, `reputationManager`, `dynamicEventManager`, `weatherSystem`, `radioSystem`, `intelSystem`, `enemyCommander`, `ambushSystem`, `heroicActionManager`, `tacticalMapManager`, `woundedSoldierManager`, `battlefieldRecoverySystem`, `extractionSystem`).
   - Event `SCENE_RENDERED`: Automatically triggers `saveGame()` with the rendered scene ID.
-  - `saveGame(sceneId?: string)`: Manually triggers serialized state write to `localStorage`.
-  - `loadGame()`: Deserializes save data, invokes `ledger.setStats()`, `squadManager.setRoster()`, `sceneManager.loadScene()`, restores all 16 system states, and publishes `GAME_LOADED`.
+  - `saveGame(sceneId?: string)`: Manually triggers serialized state write to `localStorage` and triggers background `syncToBackend()`.
+  - `loadGame()`: Deserializes save data from `localStorage`, invokes `restoreState()`, restores all 16 system states, and publishes `GAME_LOADED`.
+  - `restoreState(saveData: object)`: Shared restoration pipeline restoring ledger, squad, and all systems from a snapshot object.
+  - `syncToBackend(saveData?: object)`: Asynchronously posts campaign snapshot to `POST /api/save`.
+  - `loadFromBackend()`: Asynchronously fetches campaign snapshot from `GET /api/load`, caches in `localStorage`, and calls `restoreState()`.
+  - `clearBackendSave()`: Sends `POST /api/clear` to remove disk-persisted save file.
   - `hasSave()`: Checks if valid save record exists in `localStorage`.
   - `getSaveData()`: Parses and returns save record object.
-  - `clearSave()`: Deletes save key from `localStorage` and broadcasts `SAVE_CLEARED`.
-- **Outputs**: Persisted JSON game state in browser `localStorage`, restored manager states upon loading, and lifecycle event broadcasts (`GAME_SAVED`, `GAME_LOADED`, `SAVE_CLEARED`).
+  - `clearSave()`: Deletes save key from `localStorage`, triggers `clearBackendSave()`, and broadcasts `SAVE_CLEARED`.
+- **Outputs**: Persisted JSON game state in browser `localStorage` and server disk (`saves/squad_leader_save.json`), restored manager states upon loading, and lifecycle event broadcasts (`GAME_SAVED`, `GAME_LOADED`, `SAVE_CLEARED`).
 
 ## Systems (Phase 1)
 
@@ -364,9 +368,31 @@ This catalog documents the modules, scripts, and documentation files within the 
 - **Inputs**: `npm test` or `node --test v2/test/phase6.test.js`.
 - **Outputs**: Executes 16 test cases validating ExtractionSystem 6 ending archetypes/calculation/lifecycle execution/emergent war story generation/serialization, master SaveManager round-trip persistence across all 16 systems with 100% fidelity, and full cross-system MessageBus integration.
 
+### `v2/test/backend_save.test.js`
+- **Description**: Automated unit and integration test suite validating SaveManager REST API methods and live HTTP server endpoints (`POST /api/save`, `GET /api/load`, `POST /api/clear`, `GET /api/status`).
+- **Inputs**: `npm test` or `node --test v2/test/backend_save.test.js`.
+- **Outputs**: Executes 3 test cases validating `restoreState()`, multi-system deserialization, live REST round-trip persistence to server disk, atomic save verification, and HTTP 404 handling.
+
+## Backend Server & Persistence Layer
+
+### `server.py`
+- **Description**: Standalone multi-threaded Python HTTP and REST API server (`ThreadingHTTPServer`) combining static asset serving with atomic file-based persistence for campaign saves.
+- **Inputs**:
+  - CLI argument or environment variable `PORT` (defaults to 8080).
+  - `POST /api/save`: JSON payload containing serialized game state snapshot.
+  - `GET /api/load`: None.
+  - `POST /api/clear` or `DELETE /api/save`: None.
+  - `GET /api/status`: None.
+  - `GET <static-path>`: Serves static files from workspace root with proper MIME types.
+- **Outputs**:
+  - `POST /api/save`: Atomically writes snapshot to `saves/squad_leader_save.json` via temporary file replacement; returns JSON `{ success: true, message, sceneId, timestamp }`.
+  - `GET /api/load`: Returns JSON `{ success: true, data: <saveData> }` or HTTP 404 `{ success: false, message }`.
+  - `POST /api/clear` or `DELETE /api/save`: Deletes `saves/squad_leader_save.json`; returns JSON `{ success: true, message }`.
+  - `GET /api/status`: Returns JSON `{ status: "ok", hasSave: bool, lastModified: string|null, saveFile: string }`.
+
 ## Utilities
 
 ### `system_ctl.sh`
-- **Description**: Bash script to manage the local HTTP game server.
+- **Description**: Control script to manage the local Squad Leader: Vietnam Python HTTP & REST API server daemon.
 - **Inputs**: Commands (`start`, `stop`, `restart`, `status`).
-- **Outputs**: Spawns or kills `python3 -m http.server`, manages `.server.pid`, and outputs status text.
+- **Outputs**: Spawns or kills `python3 server.py $PORT`, manages `.server.pid`, logs to `server.log`, and outputs human-readable status text.

@@ -1,4 +1,24 @@
+// Squad Leader: Vietnam - SquadManager Entity Manager
 // Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817
+
+/*
+--------------------------------------------------
+File Name: SquadManager.js
+Purpose: Manages active squad roster lifecycle, roster state restoration, casualty processing, and squad status broadcasting.
+Responsibilities:
+- Maintain active roster of Soldier domain entities
+- Handle CASUALTY_TAKEN events and broadcast rich casualty notifications for RelationshipManager and Journal
+- Restore roster from serialized save games, preserving Phase 1 traits, wounds, conditions, and status
+- Provide query methods for live, wounded, and fallen squad members
+Dependencies: Soldier.js, MessageBus.js
+Published Events:
+- SQUAD_UPDATED: Dispatched whenever squad composition, casualty, or roster changes occur
+Subscribed Events:
+- CASUALTY_TAKEN: Triggered when a soldier falls in combat or sustains critical wounds
+- GAME_LOADED: Triggered when loading saved state to restore the roster
+Future Expansion Notes: Future phases will support squad formations, fireteam subdivisions, and reinforcement arrivals.
+--------------------------------------------------
+*/
 
 import { Soldier } from './Soldier.js';
 
@@ -47,6 +67,7 @@ export class SquadManager {
 
   /**
    * Handle a casualty event by updating soldier status and broadcasting squad update.
+   * Supports both fatal KIA casualties and non-fatal WIA woundings.
    * @param {object|string|number} payload - Event payload containing soldier ID or the ID directly.
    */
   handleCasualty(payload) {
@@ -55,16 +76,39 @@ export class SquadManager {
       : payload;
 
     const soldier = this.getSoldierById(soldierId);
-    if (soldier) {
+    if (!soldier) return;
+
+    // Check if payload specifies a non-fatal wounding or specific wound description
+    const isWoundedOnly = typeof payload === 'object' && payload !== null && payload.status === 'wounded';
+    const woundDesc = typeof payload === 'object' && payload !== null ? (payload.wound || payload.condition) : null;
+    const cause = (typeof payload === 'object' && payload !== null) 
+      ? (payload.cause || payload.reason || 'Enemy Fire') 
+      : 'Combat Action';
+
+    if (woundDesc) {
+      soldier.addWound(woundDesc);
+    }
+
+    if (isWoundedOnly) {
+      soldier.status = 'wounded';
+    } else {
       soldier.isAlive = false;
-      if (this.messageBus && typeof this.messageBus.publish === 'function') {
-        this.messageBus.publish('SQUAD_UPDATED', {
-          casualty: soldier,
-          soldiers: this.getSoldiers(),
-          aliveCount: this.getAliveSoldiers().length,
-          totalCount: this.soldiers.length
-        });
-      }
+      soldier.status = 'kia';
+    }
+
+    if (this.messageBus && typeof this.messageBus.publish === 'function') {
+      this.messageBus.publish('SQUAD_UPDATED', {
+        casualty: soldier,
+        soldier: soldier,
+        soldierId: soldier.id,
+        name: soldier.name,
+        role: soldier.role,
+        status: soldier.status,
+        cause: cause,
+        soldiers: this.getSoldiers(),
+        aliveCount: this.getAliveSoldiers().length,
+        totalCount: this.soldiers.length
+      });
     }
   }
 
@@ -85,11 +129,19 @@ export class SquadManager {
   }
 
   /**
-   * Retrieve fallen squad members.
+   * Retrieve fallen squad members (KIA).
    * @returns {Soldier[]}
    */
   getCasualties() {
     return this.soldiers.filter((soldier) => !soldier.isAlive);
+  }
+
+  /**
+   * Retrieve wounded squad members who are still alive.
+   * @returns {Soldier[]}
+   */
+  getWoundedSoldiers() {
+    return this.soldiers.filter((soldier) => soldier.isAlive && soldier.status === 'wounded');
   }
 
   /**
@@ -121,6 +173,7 @@ export class SquadManager {
 
   /**
    * Replace or update the squad roster from saved state or Soldier instances.
+   * Preserves traits, wounds, conditions, and status attributes.
    * @param {Array<Soldier|object>} roster
    */
   setRoster(roster) {
@@ -135,16 +188,31 @@ export class SquadManager {
         if (item.name) existing.name = item.name;
         if (item.role) existing.role = item.role;
         if (item.trait) existing.trait = item.trait;
+        if (Array.isArray(item.traits)) {
+          item.traits.forEach((t) => existing.addTrait(t));
+        }
+        if (Array.isArray(item.wounds)) {
+          existing.wounds = [...item.wounds];
+        }
+        if (Array.isArray(item.conditions)) {
+          existing.conditions = [...item.conditions];
+        }
         if (item.isAlive !== undefined) existing.isAlive = Boolean(item.isAlive);
         else if (item.alive !== undefined) existing.isAlive = Boolean(item.alive);
+        if (item.status) existing.status = item.status;
         if (item.morale !== undefined) existing.morale = item.morale;
         return existing;
       }
+
       const soldier = new Soldier(
         item.id,
         item.name || item.id,
         item.role || 'Infantry',
-        item.trait || 'Standard'
+        item.trait || 'Standard',
+        item.traits || [],
+        item.wounds || [],
+        item.conditions || [],
+        item.status || 'healthy'
       );
       if (item.isAlive !== undefined) soldier.isAlive = Boolean(item.isAlive);
       else if (item.alive !== undefined) soldier.alive = Boolean(item.alive);

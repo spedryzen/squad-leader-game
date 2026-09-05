@@ -1,0 +1,10 @@
+{
+  "//": "Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817",
+  "name": "squad-leader-vietnam",
+  "version": "3.0.0",
+  "type": "module",
+  "description": "Squad Leader: Vietnam V3 - Tactical Narrative Wargame",
+  "scripts": {
+    "test": "node --test v2/test/*.test.js"
+  }
+}

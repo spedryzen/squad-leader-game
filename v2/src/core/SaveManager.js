@@ -1,8 +1,29 @@
+// Squad Leader: Vietnam - SaveManager State Persistence
 // Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817
+
+/*
+--------------------------------------------------
+File Name: SaveManager.js
+Purpose: Manages auto-saving and state restoration to/from HTML5 localStorage for scene progression, ledger resources, squad status, relationships, traits, journal entries, psychological conditions, reputation, dynamic events, weather, radio communications, tactical intelligence, enemy commander AI, ambush encounters, heroic actions, tactical map, wounded soldiers, and battlefield recovery.
+Responsibilities:
+- Serialize active game state (sceneId, ledger stats, squad roster, relationships, traits, journal, conditions, reputation, dynamicEvents, weather, radio, intel, enemyCommander, ambush, heroics, tacticalMap, wounded, recovery)
+- Persist snapshots to browser localStorage under key 'squadLeaderSave'
+- Restore campaign state and broadcast GAME_LOADED
+- Provide manual save, load, and save clearing routines
+Dependencies: MessageBus.js, SceneManager.js, SquadManager.js, Ledger.js, optional systems (RelationshipManager, TraitManager, Journal, PsychologicalConditionManager, ReputationManager, DynamicEventManager, WeatherSystem, RadioSystem, IntelSystem, EnemyCommander, AmbushSystem, HeroicActionManager, TacticalMapManager, WoundedSoldierManager, BattlefieldRecoverySystem)
+Published Events:
+- GAME_SAVED: Dispatched upon successful save snapshot serialization
+- GAME_LOADED: Dispatched upon loading and restoring state across all systems
+- SAVE_CLEARED: Dispatched when save record is deleted from storage
+Subscribed Events:
+- SCENE_RENDERED: Automatically triggers auto-save on scene navigation
+Future Expansion Notes: Cloud sync support and multi-slot save profiles.
+--------------------------------------------------
+*/
 
 /**
  * SaveManager handles auto-saving and loading game state to/from HTML5 localStorage.
- * Subscribes to SCENE_RENDERED events to serialize current progress (scene ID, ledger stats, squad status).
+ * Subscribes to SCENE_RENDERED events to serialize current progress.
  */
 export class SaveManager {
   /**
@@ -11,14 +32,40 @@ export class SaveManager {
    * @param {import('../entities/SquadManager.js').SquadManager} [squadManager] - Active squad manager.
    * @param {import('../state/Ledger.js').Ledger} [ledger] - Active resource ledger.
    * @param {string} [storageKey='squadLeaderSave'] - Key name for localStorage.
+   * @param {object} [systems={}] - Optional systems: { relationshipManager, traitManager, journal, conditionManager, reputationManager, dynamicEventManager, weatherSystem, radioSystem, intelSystem }.
    */
-  constructor(messageBus, sceneManager, squadManager, ledger, storageKey = 'squadLeaderSave') {
+  constructor(messageBus, sceneManager, squadManager, ledger, storageKey = 'squadLeaderSave', systems = {}) {
     this.messageBus = messageBus || null;
     this.sceneManager = sceneManager || null;
     this.squadManager = squadManager || null;
     this.ledger = ledger || null;
     this.storageKey = storageKey;
     this.isAutoSaveEnabled = true;
+
+    // Phase 1 systems
+    this.relationshipManager = systems.relationshipManager || null;
+    this.traitManager = systems.traitManager || null;
+    this.journal = systems.journal || null;
+
+    // Phase 2 systems
+    this.conditionManager = systems.conditionManager || systems.psychologicalConditionManager || null;
+    this.reputationManager = systems.reputationManager || null;
+    this.dynamicEventManager = systems.dynamicEventManager || null;
+
+    // Phase 3 systems
+    this.weatherSystem = systems.weatherSystem || null;
+    this.radioSystem = systems.radioSystem || null;
+    this.intelSystem = systems.intelSystem || null;
+
+    // Phase 4 systems
+    this.enemyCommander = systems.enemyCommander || null;
+    this.ambushSystem = systems.ambushSystem || null;
+    this.heroicActionManager = systems.heroicActionManager || systems.heroicManager || null;
+
+    // Phase 5 systems
+    this.tacticalMapManager = systems.tacticalMapManager || systems.mapManager || null;
+    this.woundedSoldierManager = systems.woundedSoldierManager || systems.woundedManager || null;
+    this.battlefieldRecoverySystem = systems.battlefieldRecoverySystem || systems.recoverySystem || null;
 
     if (this.messageBus && typeof this.messageBus.subscribe === 'function') {
       this.messageBus.subscribe('SCENE_RENDERED', (payload) => {
@@ -29,6 +76,38 @@ export class SaveManager {
           this.saveGame(sceneId);
         }
       });
+    }
+  }
+
+  /**
+   * Attach or update additional system references for serialization.
+   * @param {object} systems
+   */
+  setSystems(systems = {}) {
+    if (systems.relationshipManager) this.relationshipManager = systems.relationshipManager;
+    if (systems.traitManager) this.traitManager = systems.traitManager;
+    if (systems.journal) this.journal = systems.journal;
+    if (systems.conditionManager || systems.psychologicalConditionManager) {
+      this.conditionManager = systems.conditionManager || systems.psychologicalConditionManager;
+    }
+    if (systems.reputationManager) this.reputationManager = systems.reputationManager;
+    if (systems.dynamicEventManager) this.dynamicEventManager = systems.dynamicEventManager;
+    if (systems.weatherSystem) this.weatherSystem = systems.weatherSystem;
+    if (systems.radioSystem) this.radioSystem = systems.radioSystem;
+    if (systems.intelSystem) this.intelSystem = systems.intelSystem;
+    if (systems.enemyCommander) this.enemyCommander = systems.enemyCommander;
+    if (systems.ambushSystem) this.ambushSystem = systems.ambushSystem;
+    if (systems.heroicActionManager || systems.heroicManager) {
+      this.heroicActionManager = systems.heroicActionManager || systems.heroicManager;
+    }
+    if (systems.tacticalMapManager || systems.mapManager) {
+      this.tacticalMapManager = systems.tacticalMapManager || systems.mapManager;
+    }
+    if (systems.woundedSoldierManager || systems.woundedManager) {
+      this.woundedSoldierManager = systems.woundedSoldierManager || systems.woundedManager;
+    }
+    if (systems.battlefieldRecoverySystem || systems.recoverySystem) {
+      this.battlefieldRecoverySystem = systems.battlefieldRecoverySystem || systems.recoverySystem;
     }
   }
 
@@ -68,6 +147,10 @@ export class SaveManager {
         name: soldier.name,
         role: soldier.role,
         trait: soldier.trait,
+        traits: soldier.traits || (soldier.trait ? [soldier.trait] : []),
+        wounds: soldier.wounds || [],
+        conditions: soldier.conditions || [],
+        status: soldier.status || (soldier.isAlive ? 'healthy' : 'kia'),
         isAlive: Boolean(soldier.isAlive),
         morale: soldier.morale ?? 100
       };
@@ -76,11 +159,26 @@ export class SaveManager {
     const stats = this.ledger?.getStats ? this.ledger.getStats() : (this.ledger?.stats || {});
 
     const saveData = {
-      version: 1,
+      version: 3,
       timestamp: new Date().toISOString(),
       sceneId: targetSceneId,
       stats: { ...stats },
-      squad: serializedSquad
+      squad: serializedSquad,
+      relationships: this.relationshipManager?.serialize ? this.relationshipManager.serialize() : [],
+      traits: this.traitManager?.serialize ? this.traitManager.serialize() : {},
+      journal: this.journal?.serialize ? this.journal.serialize() : {},
+      conditions: this.conditionManager?.serialize ? this.conditionManager.serialize() : {},
+      reputation: this.reputationManager?.serialize ? this.reputationManager.serialize() : {},
+      dynamicEvents: this.dynamicEventManager?.serialize ? this.dynamicEventManager.serialize() : {},
+      weather: this.weatherSystem?.serialize ? this.weatherSystem.serialize() : null,
+      radio: this.radioSystem?.serialize ? this.radioSystem.serialize() : null,
+      intel: this.intelSystem?.serialize ? this.intelSystem.serialize() : null,
+      enemyCommander: this.enemyCommander?.serialize ? this.enemyCommander.serialize() : null,
+      ambush: this.ambushSystem?.serialize ? this.ambushSystem.serialize() : null,
+      heroics: this.heroicActionManager?.serialize ? this.heroicActionManager.serialize() : null,
+      tacticalMap: this.tacticalMapManager?.serialize ? this.tacticalMapManager.serialize() : null,
+      wounded: this.woundedSoldierManager?.serialize ? this.woundedSoldierManager.serialize() : null,
+      recovery: this.battlefieldRecoverySystem?.serialize ? this.battlefieldRecoverySystem.serialize() : null
     };
 
     if (this.isStorageAvailable()) {
@@ -147,18 +245,83 @@ export class SaveManager {
       this.squadManager.setRoster(saveData.squad);
     }
 
-    // 3. Temporarily disable auto-save while restoring scene to avoid redundant intermediate writes
+    // 3. Restore Phase 1 systems if references attached
+    if (saveData.relationships && this.relationshipManager && typeof this.relationshipManager.deserialize === 'function') {
+      this.relationshipManager.deserialize(saveData.relationships);
+    }
+
+    if (saveData.traits && this.traitManager && typeof this.traitManager.deserialize === 'function') {
+      this.traitManager.deserialize(saveData.traits);
+    }
+
+    if (saveData.journal && this.journal && typeof this.journal.deserialize === 'function') {
+      this.journal.deserialize(saveData.journal);
+    }
+
+    // 4. Restore Phase 2 systems if references attached
+    if (saveData.conditions && this.conditionManager && typeof this.conditionManager.deserialize === 'function') {
+      this.conditionManager.deserialize(saveData.conditions);
+    }
+
+    if (saveData.reputation && this.reputationManager && typeof this.reputationManager.deserialize === 'function') {
+      this.reputationManager.deserialize(saveData.reputation);
+    }
+
+    if (saveData.dynamicEvents && this.dynamicEventManager && typeof this.dynamicEventManager.deserialize === 'function') {
+      this.dynamicEventManager.deserialize(saveData.dynamicEvents);
+    }
+
+    // 5. Restore Phase 3 systems if references attached
+    if (saveData.weather && this.weatherSystem && typeof this.weatherSystem.deserialize === 'function') {
+      this.weatherSystem.deserialize(saveData.weather);
+    }
+
+    if (saveData.radio && this.radioSystem && typeof this.radioSystem.deserialize === 'function') {
+      this.radioSystem.deserialize(saveData.radio);
+    }
+
+    if (saveData.intel && this.intelSystem && typeof this.intelSystem.deserialize === 'function') {
+      this.intelSystem.deserialize(saveData.intel);
+    }
+
+    // 6. Restore Phase 4 systems if references attached
+    if (saveData.enemyCommander && this.enemyCommander && typeof this.enemyCommander.deserialize === 'function') {
+      this.enemyCommander.deserialize(saveData.enemyCommander);
+    }
+
+    if (saveData.ambush && this.ambushSystem && typeof this.ambushSystem.deserialize === 'function') {
+      this.ambushSystem.deserialize(saveData.ambush);
+    }
+
+    if ((saveData.heroics || saveData.heroicActions) && this.heroicActionManager && typeof this.heroicActionManager.deserialize === 'function') {
+      this.heroicActionManager.deserialize(saveData.heroics || saveData.heroicActions);
+    }
+
+    // 7. Restore Phase 5 systems if references attached
+    if ((saveData.tacticalMap || saveData.map) && this.tacticalMapManager && typeof this.tacticalMapManager.deserialize === 'function') {
+      this.tacticalMapManager.deserialize(saveData.tacticalMap || saveData.map);
+    }
+
+    if ((saveData.wounded || saveData.woundedSoldiers) && this.woundedSoldierManager && typeof this.woundedSoldierManager.deserialize === 'function') {
+      this.woundedSoldierManager.deserialize(saveData.wounded || saveData.woundedSoldiers);
+    }
+
+    if ((saveData.recovery || saveData.battlefieldRecovery) && this.battlefieldRecoverySystem && typeof this.battlefieldRecoverySystem.deserialize === 'function') {
+      this.battlefieldRecoverySystem.deserialize(saveData.recovery || saveData.battlefieldRecovery);
+    }
+
+    // 8. Temporarily disable auto-save while restoring scene to avoid redundant intermediate writes
     const prevAutoSave = this.isAutoSaveEnabled;
     this.isAutoSaveEnabled = false;
 
-    // 4. Restore Scene in SceneManager
+    // 8. Restore Scene in SceneManager
     if (saveData.sceneId && this.sceneManager && typeof this.sceneManager.loadScene === 'function') {
       this.sceneManager.loadScene(saveData.sceneId);
     }
 
     this.isAutoSaveEnabled = prevAutoSave;
 
-    // 5. Publish GAME_LOADED event
+    // 9. Publish GAME_LOADED event so all subscribed systems react
     if (this.messageBus && typeof this.messageBus.publish === 'function') {
       this.messageBus.publish('GAME_LOADED', saveData);
     }

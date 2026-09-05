@@ -1,4 +1,20 @@
+// Squad Leader: Vietnam - Main Application Composition Root
 // Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817
+
+/*
+--------------------------------------------------
+File Name: main.js
+Purpose: Composition root that wires together core engine modules, entities, state ledgers, systems, and the browser UI.
+Responsibilities:
+- Instantiate MessageBus, Ledger, SquadManager, RelationshipManager, TraitManager, Journal, PsychologicalConditionManager, ReputationManager, DynamicEventManager, WeatherSystem, RadioSystem, IntelSystem, EnemyCommander, AmbushSystem, HeroicActionManager, TacticalMapManager, WoundedSoldierManager, BattlefieldRecoverySystem, GameEngine, SceneManager, SaveManager
+- Render interactive DOM tactical dashboard, roster status, tactical choices, and live event stream
+- Handle player UI interactions and game lifecycle operations
+Dependencies: MessageBus, GameEngine, SceneManager, SaveManager, SquadManager, Ledger, RelationshipManager, TraitManager, Journal, PsychologicalConditionManager, ReputationManager, DynamicEventManager, WeatherSystem, RadioSystem, IntelSystem, EnemyCommander, AmbushSystem, HeroicActionManager, TacticalMapManager, WoundedSoldierManager, BattlefieldRecoverySystem, campaign data
+Published Events: Various lifecycle and test events
+Subscribed Events: SCENE_RENDERED, CHOICE_RESOLUTION, STAT_CHANGED, SQUAD_UPDATED, GAME_SAVED, GAME_LOADED, SAVE_CLEARED, REPUTATION_CHANGED, CONDITION_GAINED, CONDITION_REMOVED, DYNAMIC_EVENT_TRIGGERED, WEATHER_CHANGED, RADIO_MESSAGE_RECEIVED, INTEL_LEVEL_CHANGED, ENEMY_STRATEGY_CHANGED, AMBUSH_WARNING, TENSION_RESOLVED, MAP_UPDATED, MAP_MARKER_ADDED, SOLDIER_WOUNDED, WOUNDED_DECISION_MADE, SOLDIER_EVACUATED, SOLDIER_ABANDONED, RECOVERY_OFFERED, RECOVERY_EXECUTED
+Future Expansion Notes: Future phases will integrate canvas tactical maps, combat casualty dialogs, and campaign journal viewer modal.
+--------------------------------------------------
+*/
 
 import { MessageBus } from './core/MessageBus.js';
 import { GameEngine } from './core/GameEngine.js';
@@ -6,6 +22,21 @@ import { SceneManager } from './core/SceneManager.js';
 import { SaveManager } from './core/SaveManager.js';
 import { SquadManager } from './entities/SquadManager.js';
 import { Ledger } from './state/Ledger.js';
+import { RelationshipManager } from './systems/RelationshipManager.js';
+import { TraitManager } from './systems/TraitManager.js';
+import { Journal } from './systems/Journal.js';
+import { PsychologicalConditionManager } from './systems/PsychologicalConditionManager.js';
+import { ReputationManager } from './systems/ReputationManager.js';
+import { DynamicEventManager } from './systems/DynamicEventManager.js';
+import { WeatherSystem } from './systems/WeatherSystem.js';
+import { RadioSystem } from './systems/RadioSystem.js';
+import { IntelSystem } from './systems/IntelSystem.js';
+import { EnemyCommander } from './systems/EnemyCommander.js';
+import { AmbushSystem } from './systems/AmbushSystem.js';
+import { HeroicActionManager } from './systems/HeroicActionManager.js';
+import { TacticalMapManager } from './systems/TacticalMapManager.js';
+import { WoundedSoldierManager } from './systems/WoundedSoldierManager.js';
+import { BattlefieldRecoverySystem } from './systems/BattlefieldRecoverySystem.js';
 import { campaign3US } from './data/campaign_3_us.js?v=7';
 import { campaign4LZ } from './data/campaign_4_lz.js?v=1';
 
@@ -31,6 +62,10 @@ if (isBrowser) {
           <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
             <div class="status-badge" id="system-status">STATUS: INITIALIZING...</div>
             <div class="status-badge" id="save-status" style="border-color: var(--smoke-gray); color: var(--smoke-gray);">AUTO-SAVE: READY</div>
+            <div class="status-badge" id="weather-status" style="border-color: var(--radio-green); color: var(--terminal-green);">WEATHER: CLEAR</div>
+            <div class="status-badge" id="radio-status" style="border-color: var(--warning-yellow); color: var(--warning-yellow); display: none;">RADIO: NET READY</div>
+            <div class="status-badge" id="enemy-status" style="border-color: var(--blood-red); color: #ff6b6b;">NVA: RECON</div>
+            <div class="status-badge" id="ambush-status" style="border-color: var(--warning-yellow); color: var(--warning-yellow); display: none;">TENSION: ALERT</div>
           </div>
         </header>
 
@@ -100,7 +135,7 @@ if (isBrowser) {
               <strong>HEAT:</strong> <span id="stat-heat">0</span>
             </div>
             <div style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--radio-green);">
-              <strong>INTEL:</strong> <span id="stat-intel">0</span>
+              <strong>INTEL:</strong> <span id="stat-intel">0</span> <span id="intel-tier-badge" style="font-size: 0.75rem; color: var(--smoke-gray); margin-left: 4px;">[LOW]</span>
             </div>
             <div style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--dust-tan);">
               <strong>SUPPLIES:</strong> <span id="stat-supplies">100</span>
@@ -190,10 +225,52 @@ messageBus.publish = function (event, payload = null) {
 // 3. Instantiate the core OOP systems, passing the MessageBus
 const ledger = new Ledger(messageBus);
 const squadManager = new SquadManager(messageBus);
+const relationshipManager = new RelationshipManager(messageBus, null, squadManager);
+const traitManager = new TraitManager(messageBus, squadManager);
+const journal = new Journal(messageBus);
+const conditionManager = new PsychologicalConditionManager(messageBus, squadManager);
+const reputationManager = new ReputationManager(messageBus);
+const dynamicEventManager = new DynamicEventManager(messageBus);
+const weatherSystem = new WeatherSystem(messageBus);
+const radioSystem = new RadioSystem(messageBus, { weatherSystem });
+const intelSystem = new IntelSystem(messageBus, ledger);
+const enemyCommander = new EnemyCommander(messageBus, { ledger, squadManager });
+const ambushSystem = new AmbushSystem(messageBus, { ledger, intelSystem, weatherSystem, enemyCommander });
+const heroicActionManager = new HeroicActionManager(messageBus, { squadManager });
+const tacticalMapManager = new TacticalMapManager(messageBus, { intelSystem, ledger });
+const woundedSoldierManager = new WoundedSoldierManager(messageBus, {
+  squadManager,
+  ledger,
+  conditionManager,
+  relationshipManager,
+  journal
+});
+const battlefieldRecoverySystem = new BattlefieldRecoverySystem(messageBus, {
+  ledger,
+  squadManager,
+  enemyCommander,
+  journal
+});
 const gameEngine = new GameEngine(messageBus);
 const combinedCampaign = { ...campaign3US, ...campaign4LZ };
 const sceneManager = new SceneManager(messageBus, combinedCampaign);
-const saveManager = new SaveManager(messageBus, sceneManager, squadManager, ledger);
+const saveManager = new SaveManager(messageBus, sceneManager, squadManager, ledger, 'squadLeaderSave', {
+  relationshipManager,
+  traitManager,
+  journal,
+  conditionManager,
+  reputationManager,
+  dynamicEventManager,
+  weatherSystem,
+  radioSystem,
+  intelSystem,
+  enemyCommander,
+  ambushSystem,
+  heroicActionManager,
+  tacticalMapManager,
+  woundedSoldierManager,
+  battlefieldRecoverySystem
+});
 
 // 4. Update UI helpers
 function updateLedgerUI() {
@@ -203,11 +280,85 @@ function updateLedgerUI() {
   const intelEl = document.getElementById('stat-intel');
   const suppliesEl = document.getElementById('stat-supplies');
   const summaryEl = document.getElementById('ledger-summary');
+  const intelBadgeEl = document.getElementById('intel-tier-badge');
+
+  const tier = intelSystem ? intelSystem.getIntelTier() : 'LOW';
 
   if (heatEl) heatEl.textContent = stats.heat;
   if (intelEl) intelEl.textContent = stats.intel;
   if (suppliesEl) suppliesEl.textContent = stats.supplies;
-  if (summaryEl) summaryEl.textContent = `Heat: ${stats.heat} | Intel: ${stats.intel} | Supplies: ${stats.supplies}`;
+  if (intelBadgeEl) intelBadgeEl.textContent = `[${tier}]`;
+  if (summaryEl) summaryEl.textContent = `Heat: ${stats.heat} | Intel: ${stats.intel} (${tier}) | Supplies: ${stats.supplies}`;
+}
+
+function updateWeatherUI() {
+  if (!isBrowser) return;
+  const weatherBadge = document.getElementById('weather-status');
+  if (weatherBadge && weatherSystem) {
+    const current = weatherSystem.getCurrentWeather();
+    weatherBadge.textContent = `WEATHER: ${current.name.toUpperCase()}`;
+    if (current.type === 'Clear') {
+      weatherBadge.style.borderColor = 'var(--radio-green)';
+      weatherBadge.style.color = 'var(--terminal-green)';
+    } else if (current.type === 'Thunderstorm' || current.type === 'Monsoon') {
+      weatherBadge.style.borderColor = 'var(--blood-red)';
+      weatherBadge.style.color = 'var(--blood-red)';
+    } else {
+      weatherBadge.style.borderColor = 'var(--warning-yellow)';
+      weatherBadge.style.color = 'var(--warning-yellow)';
+    }
+  }
+}
+
+function updateRadioUI() {
+  if (!isBrowser) return;
+  const radioBadge = document.getElementById('radio-status');
+  if (radioBadge && radioSystem) {
+    const active = radioSystem.getActiveMessages();
+    if (active.length > 0) {
+      radioBadge.style.display = 'inline-block';
+      radioBadge.textContent = `RADIO: ${active.length} URGENT CALL${active.length === 1 ? '' : 'S'}`;
+      radioBadge.style.borderColor = 'var(--blood-red)';
+      radioBadge.style.color = 'var(--blood-red)';
+    } else {
+      radioBadge.style.display = 'none';
+    }
+  }
+}
+
+function updateEnemyUI() {
+  if (!isBrowser) return;
+  const enemyBadge = document.getElementById('enemy-status');
+  if (enemyBadge && enemyCommander) {
+    const state = enemyCommander.getState();
+    enemyBadge.textContent = `NVA: ${state.currentStrategy.toUpperCase()}`;
+    if (state.currentStrategy === 'Full Assault' || state.currentStrategy === 'Hunt') {
+      enemyBadge.style.borderColor = 'var(--blood-red)';
+      enemyBadge.style.color = '#ff4d4d';
+    } else if (state.currentStrategy === 'Ambush') {
+      enemyBadge.style.borderColor = 'var(--warning-yellow)';
+      enemyBadge.style.color = 'var(--warning-yellow)';
+    } else {
+      enemyBadge.style.borderColor = 'var(--smoke-gray)';
+      enemyBadge.style.color = '#ff8888';
+    }
+  }
+}
+
+function updateAmbushUI() {
+  if (!isBrowser) return;
+  const ambushBadge = document.getElementById('ambush-status');
+  if (ambushBadge && ambushSystem) {
+    const tension = ambushSystem.getActiveTension();
+    if (tension) {
+      ambushBadge.style.display = 'inline-block';
+      ambushBadge.textContent = `TENSION: ${tension.probableThreat.toUpperCase()}`;
+      ambushBadge.style.borderColor = 'var(--warning-yellow)';
+      ambushBadge.style.color = 'var(--warning-yellow)';
+    } else {
+      ambushBadge.style.display = 'none';
+    }
+  }
 }
 
 function updateSquadUI() {
@@ -226,12 +377,14 @@ function updateSquadUI() {
   rosterEl.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">
       ${soldiers.map(s => `
-        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-left: 4px solid ${s.isAlive ? 'var(--radio-green)' : 'var(--blood-red)'};">
-          <div style="font-weight: bold; color: ${s.isAlive ? 'var(--dust-tan)' : 'var(--blood-red)'}; font-size: 0.95rem;">
-            ${s.name} ${s.isAlive ? '' : '(KIA/WIA)'}
+        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-left: 4px solid ${s.isAlive ? (s.status === 'wounded' ? 'var(--warning-yellow)' : 'var(--radio-green)') : 'var(--blood-red)'};">
+          <div style="font-weight: bold; color: ${s.isAlive ? (s.status === 'wounded' ? 'var(--warning-yellow)' : 'var(--dust-tan)') : 'var(--blood-red)'}; font-size: 0.95rem;">
+            ${s.name} ${s.isAlive ? (s.status === 'wounded' ? '(WOUNDED)' : '') : '(KIA)'}
           </div>
           <div style="font-size: 0.8rem; color: var(--smoke-gray); margin-top: 2px;">${s.role}</div>
-          <div style="font-size: 0.75rem; color: var(--warning-yellow); margin-top: 2px;">Trait: ${s.trait}</div>
+          <div style="font-size: 0.75rem; color: var(--warning-yellow); margin-top: 2px;">Traits: ${(s.getTraits ? s.getTraits() : [s.trait]).join(', ')}</div>
+          ${s.conditions && s.conditions.length > 0 ? `<div style="font-size: 0.75rem; color: #ff9800; margin-top: 2px;">Conditions: ${s.conditions.join(', ')}</div>` : ''}
+          ${s.wounds && s.wounds.length > 0 ? `<div style="font-size: 0.75rem; color: var(--blood-red); margin-top: 2px;">Wounds: ${s.wounds.join(', ')}</div>` : ''}
           ${s.isAlive ? `
           <div style="margin-top: 6px;">
             <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--smoke-gray); margin-bottom: 2px;">
@@ -312,10 +465,58 @@ messageBus.subscribe('GAME_LOADED', () => {
   updateLedgerUI();
   updateSquadUI();
   updateSaveStatusUI();
+  updateWeatherUI();
+  updateRadioUI();
+  updateEnemyUI();
+  updateAmbushUI();
 });
 
 messageBus.subscribe('SAVE_CLEARED', () => {
   updateSaveStatusUI();
+});
+
+messageBus.subscribe('CONDITION_GAINED', () => {
+  updateSquadUI();
+});
+
+messageBus.subscribe('CONDITION_REMOVED', () => {
+  updateSquadUI();
+});
+
+messageBus.subscribe('REPUTATION_CHANGED', () => {
+  updateLedgerUI();
+});
+
+messageBus.subscribe('WEATHER_CHANGED', () => {
+  updateWeatherUI();
+});
+
+messageBus.subscribe('RADIO_MESSAGE_RECEIVED', () => {
+  updateRadioUI();
+});
+
+messageBus.subscribe('RADIO_DECISION', () => {
+  updateRadioUI();
+});
+
+messageBus.subscribe('RADIO_TIMEOUT', () => {
+  updateRadioUI();
+});
+
+messageBus.subscribe('INTEL_LEVEL_CHANGED', () => {
+  updateLedgerUI();
+});
+
+messageBus.subscribe('ENEMY_STRATEGY_CHANGED', () => {
+  updateEnemyUI();
+});
+
+messageBus.subscribe('AMBUSH_WARNING', () => {
+  updateAmbushUI();
+});
+
+messageBus.subscribe('TENSION_RESOLVED', () => {
+  updateAmbushUI();
 });
 
 // 6. Subscribe to SCENE_RENDERED for narrative and choices UI rendering
@@ -611,6 +812,10 @@ if (isBrowser) {
 // Initial UI Render
 updateLedgerUI();
 updateSquadUI();
+updateWeatherUI();
+updateRadioUI();
+updateEnemyUI();
+updateAmbushUI();
 
 // 7. Boot the game engine and initialize scene flow
 gameEngine.init();
@@ -625,4 +830,26 @@ if (saveManager.hasSave()) {
 updateSaveStatusUI();
 
 // Export wired instances for debugging / inspection / tests
-export { messageBus, ledger, squadManager, gameEngine, sceneManager, saveManager };
+export {
+  messageBus,
+  ledger,
+  squadManager,
+  gameEngine,
+  sceneManager,
+  saveManager,
+  relationshipManager,
+  traitManager,
+  journal,
+  conditionManager,
+  reputationManager,
+  dynamicEventManager,
+  weatherSystem,
+  radioSystem,
+  intelSystem,
+  enemyCommander,
+  ambushSystem,
+  heroicActionManager,
+  tacticalMapManager,
+  woundedSoldierManager,
+  battlefieldRecoverySystem
+};

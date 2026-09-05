@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817
 
-PORT=8000
+PORT=${PORT:-8080}
 PID_FILE=".server.pid"
 
 start() {
     if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
         echo "Squad Leader server is already running (PID $(cat "$PID_FILE"))."
-        echo "Access it here: http://localhost:$PORT/v2/index.html"
+        echo "Access it here: http://127.0.0.1:$PORT/v2/index.html"
         return
     fi
     echo "Starting Squad Leader: Vietnam server on port $PORT..."
-    python3 -m http.server $PORT > server.log 2>&1 &
+    python3 -m http.server $PORT --bind 127.0.0.1 > server.log 2>&1 &
     echo $! > "$PID_FILE"
     echo "Server started!"
-    echo "Play the game at: http://localhost:$PORT/v2/index.html"
+    echo "Play the game at: http://127.0.0.1:$PORT/v2/index.html"
 }
 
 stop() {
@@ -42,7 +42,7 @@ restart() {
 status() {
     if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
         echo "Squad Leader server is RUNNING (PID $(cat "$PID_FILE"))."
-        echo "Access it here: http://localhost:$PORT/v2/index.html"
+        echo "Access it here: http://127.0.0.1:$PORT/v2/index.html"
     else
         echo "Squad Leader server is STOPPED."
     fi

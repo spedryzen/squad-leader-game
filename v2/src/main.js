@@ -24,17 +24,17 @@ import { SquadManager } from './entities/SquadManager.js';
 import { Ledger } from './state/Ledger.js';
 import { RelationshipManager } from './systems/RelationshipManager.js';
 import { TraitManager } from './systems/TraitManager.js';
-import { Journal } from './systems/Journal.js';
-import { PsychologicalConditionManager } from './systems/PsychologicalConditionManager.js';
+import { Journal, JOURNAL_CATEGORIES } from './systems/Journal.js';
+import { PsychologicalConditionManager, PSYCHOLOGICAL_CONDITIONS } from './systems/PsychologicalConditionManager.js';
 import { ReputationManager } from './systems/ReputationManager.js';
 import { DynamicEventManager } from './systems/DynamicEventManager.js';
 import { WeatherSystem } from './systems/WeatherSystem.js';
-import { RadioSystem } from './systems/RadioSystem.js';
+import { RadioSystem, RADIO_CHANNELS, CHANNEL_METADATA } from './systems/RadioSystem.js';
 import { IntelSystem } from './systems/IntelSystem.js';
 import { EnemyCommander } from './systems/EnemyCommander.js';
 import { AmbushSystem } from './systems/AmbushSystem.js';
 import { HeroicActionManager } from './systems/HeroicActionManager.js';
-import { TacticalMapManager } from './systems/TacticalMapManager.js';
+import { TacticalMapManager, MAP_MARKER_TYPES } from './systems/TacticalMapManager.js';
 import { WoundedSoldierManager } from './systems/WoundedSoldierManager.js';
 import { BattlefieldRecoverySystem } from './systems/BattlefieldRecoverySystem.js';
 import { ExtractionSystem, EXTRACTION_ARCHETYPES } from './systems/ExtractionSystem.js';
@@ -59,12 +59,13 @@ if (isBrowser) {
       <div class="container">
         <header>
           <h1>Squad Leader: Vietnam</h1>
-          <div class="subtitle">v2 Object-Oriented Architecture Integration</div>
-          <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+          <div class="subtitle">v3 Advanced Tactical Command &amp; Operations</div>
+          <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
             <div class="status-badge" id="system-status">STATUS: INITIALIZING...</div>
             <div class="status-badge" id="save-status" style="border-color: var(--smoke-gray); color: var(--smoke-gray);">AUTO-SAVE: READY</div>
             <div class="status-badge" id="weather-status" style="border-color: var(--radio-green); color: var(--terminal-green);">WEATHER: CLEAR</div>
             <div class="status-badge" id="radio-status" style="border-color: var(--warning-yellow); color: var(--warning-yellow); display: none;">RADIO: NET READY</div>
+            <div class="status-badge" id="reputation-status" style="border-color: #a78bfa; color: #a78bfa;">REP: NEUTRAL</div>
             <div class="status-badge" id="enemy-status" style="border-color: var(--blood-red); color: #ff6b6b;">NVA: RECON</div>
             <div class="status-badge" id="ambush-status" style="border-color: var(--warning-yellow); color: var(--warning-yellow); display: none;">TENSION: ALERT</div>
             <div class="status-badge" id="extraction-status" style="border-color: var(--terminal-green); color: var(--terminal-green); display: none;">EXTRACTION: READY</div>
@@ -72,13 +73,13 @@ if (isBrowser) {
         </header>
 
         <!-- Save & Campaign Flow Controls -->
-        <div class="panel" style="padding: 14px 20px;">
+        <div class="panel" style="padding: 12px 18px;">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div style="font-size: 0.9rem; color: var(--warning-yellow); font-weight: bold;">
               <span>CAMPAIGN CONTROLS</span>
               <span id="save-summary" style="font-size: 0.8rem; color: var(--smoke-gray); margin-left: 10px; font-weight: normal;"></span>
             </div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button id="btn-resume-game" style="cursor: pointer; padding: 6px 14px; background: var(--jungle-mid); color: var(--dust-tan); border: 1px solid var(--radio-green); font-family: inherit; font-size: 0.85rem;">Resume Game</button>
               <button id="btn-new-game" style="cursor: pointer; padding: 6px 14px; background: var(--jungle-mid); color: var(--dust-tan); border: 1px solid var(--warning-yellow); font-family: inherit; font-size: 0.85rem;">New Game (Reset)</button>
               <button id="btn-manual-save" style="cursor: pointer; padding: 6px 14px; background: var(--jungle-mid); color: var(--dust-tan); border: 1px solid var(--radio-green); font-family: inherit; font-size: 0.85rem;">Manual Save</button>
@@ -87,83 +88,124 @@ if (isBrowser) {
           </div>
         </div>
 
-        <!-- Tactical Map Panel -->
-        <div class="panel" id="map-container" style="position: relative; width: 100%; height: 250px; background: 
-          repeating-linear-gradient(rgba(74,246,38,0.1) 0, rgba(74,246,38,0.1) 1px, transparent 1px, transparent 20px),
-          repeating-linear-gradient(90deg, rgba(74,246,38,0.1) 0, rgba(74,246,38,0.1) 1px, transparent 1px, transparent 20px),
-          radial-gradient(ellipse at center, var(--jungle-mid) 0%, var(--jungle-dark) 100%); 
-          border: 2px solid var(--radio-green); overflow: hidden; margin-bottom: 20px; display: none;">
-          <div style="position: absolute; top: 5px; left: 5px; color: var(--radio-green); font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">AOR Map - Grid 881</div>
-          
-          <!-- Static POI Markers -->
-          <div style="position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: rgba(74,246,38,0.3); border: 1px solid var(--radio-green); transform: translate(-50%, -50%);"><span style="position: absolute; top: 12px; left: -20px; color: var(--smoke-gray); font-size: 0.65rem; white-space: nowrap;">Bunker 4</span></div>
-          <div style="position: absolute; top: 45%; left: 60%; width: 10px; height: 10px; background: rgba(74,246,38,0.3); border: 1px dashed var(--blood-red); transform: translate(-50%, -50%);"><span style="position: absolute; top: 12px; left: -20px; color: var(--smoke-gray); font-size: 0.65rem; white-space: nowrap;">Treeline (Contact)</span></div>
-          <div style="position: absolute; top: 35%; left: 30%; width: 10px; height: 10px; background: rgba(74,246,38,0.3); border: 1px solid var(--radio-green); transform: translate(-50%, -50%);"><span style="position: absolute; top: 12px; left: -20px; color: var(--smoke-gray); font-size: 0.65rem; white-space: nowrap;">Highway 9</span></div>
-          <div style="position: absolute; top: 20%; left: 20%; width: 10px; height: 10px; background: rgba(74,246,38,0.3); border: 1px solid var(--warning-yellow); transform: translate(-50%, -50%);"><span style="position: absolute; top: 12px; left: -10px; color: var(--warning-yellow); font-size: 0.65rem; white-space: nowrap;">LZ X-Ray</span></div>
-
-          <!-- Dynamic Player Marker -->
-          <div id="map-marker" style="position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; background: var(--warning-yellow); border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); transition: all 1s ease-in-out; box-shadow: 0 0 10px var(--warning-yellow); z-index: 10;"></div>
-          
-          <!-- Detachment Marker (for scouts/dogs/vehicles) -->
-          <div id="detachment-marker" style="position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; background: #4af626; border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); transition: all 1s ease-in-out; box-shadow: 0 0 8px #4af626; z-index: 11; display: none;">
-            <span id="detachment-label" style="position: absolute; top: 12px; left: -10px; color: #4af626; font-size: 0.65rem; white-space: nowrap; font-weight: bold;"></span>
-          </div>
-
-          <!-- Topographic contour lines effect -->
-          <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background-image: url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\"><path d=\"M10,50 Q100,10 200,60 T400,30 T600,80 T800,20 T1000,50 M50,120 Q150,80 250,130 T450,100 T650,150 T850,90 T1050,120 M0,200 Q100,160 200,210 T400,180 T600,230 T800,170 T1000,200\" fill=\"none\" stroke=\"rgba(74,246,38,0.15)\" stroke-width=\"1\"/></svg>');"></div>
-        </div>
-
-        <!-- Narrative & Choices Panel (SceneManager) -->
-        <div class="panel" id="scene-panel">
-          <div class="panel-header">
-            <span>Tactical Narrative &amp; Orders</span>
-            <span id="scene-location" style="color: var(--warning-yellow); font-size: 0.9rem;"></span>
-          </div>
-          <div id="narrative-text" style="font-size: 1rem; line-height: 1.6; color: var(--dust-tan); background: rgba(0, 0, 0, 0.4); padding: 16px; border-left: 4px solid var(--warning-yellow); margin-bottom: 16px; min-height: 70px;">
-            Awaiting tactical briefing...
-          </div>
-          <div id="choices-container" style="display: flex; flex-direction: column; gap: 10px;">
-            <!-- Choice buttons are dynamically rendered here -->
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-header">
+        <!-- Command Stats (Ledger) -->
+        <div class="panel" style="padding: 12px 18px;">
+          <div class="panel-header" style="margin-bottom: 8px;">
             <span>Command Stats (Ledger)</span>
-            <span id="ledger-summary">Heat: 0 | Intel: 0 | Supplies: 100</span>
+            <span id="ledger-summary">Heat: 0 | Intel: 0 [LOW] | Supplies: 100 | Stress: 0</span>
           </div>
-          <div id="stats-display" style="display: flex; gap: 15px; font-size: 0.9rem;">
-            <div style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--warning-yellow);">
+          <div id="stats-display" style="display: flex; gap: 12px; font-size: 0.85rem; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 140px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--warning-yellow);">
               <strong>HEAT:</strong> <span id="stat-heat">0</span>
             </div>
-            <div style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--radio-green);">
+            <div style="flex: 1; min-width: 140px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--radio-green);">
               <strong>INTEL:</strong> <span id="stat-intel">0</span> <span id="intel-tier-badge" style="font-size: 0.75rem; color: var(--smoke-gray); margin-left: 4px;">[LOW]</span>
             </div>
-            <div style="flex: 1; padding: 10px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--dust-tan);">
+            <div style="flex: 1; min-width: 140px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-left: 3px solid var(--dust-tan);">
               <strong>SUPPLIES:</strong> <span id="stat-supplies">100</span>
+            </div>
+            <div style="flex: 1; min-width: 140px; padding: 8px 12px; background: rgba(0,0,0,0.3); border-left: 3px solid #ff6b6b;">
+              <strong>STRESS:</strong> <span id="stat-stress">0</span>
             </div>
           </div>
         </div>
 
-        <div class="panel">
-          <div class="panel-header">
-            <span>Squad Roster (SquadManager)</span>
-            <span id="squad-counter">8/8 Ready</span>
-          </div>
-          <div id="squad-roster"></div>
-        </div>
+        <!-- Military Tab Navigation -->
+        <nav class="nav-tabs" role="tablist">
+          <button class="nav-tab active" data-tab="briefing" id="tab-btn-briefing" role="tab" aria-selected="true">[ BRIEFING &amp; ORDERS ]</button>
+          <button class="nav-tab" data-tab="radio" id="tab-btn-radio" role="tab" aria-selected="false">[ FIELD RADIO (PRC-25) ] <span class="tab-badge hidden" id="radio-tab-badge">0</span></button>
+          <button class="nav-tab" data-tab="journal" id="tab-btn-journal" role="tab" aria-selected="false">[ WAR JOURNAL ] <span class="tab-badge hidden" id="journal-tab-badge">0</span></button>
+          <button class="nav-tab" data-tab="map" id="tab-btn-map" role="tab" aria-selected="false">[ AOR TACTICAL MAP ]</button>
+          <button class="nav-tab" data-tab="dossier" id="tab-btn-dossier" role="tab" aria-selected="false">[ SQUAD DOSSIER ]</button>
+          <button class="nav-tab" data-tab="events" id="tab-btn-events" role="tab" aria-selected="false">[ EVENT STREAM ]</button>
+        </nav>
 
-        <div class="panel">
-          <div class="panel-header">
-            <span>MessageBus Live Event Stream</span>
-            <span id="event-counter">0 events</span>
+        <!-- Tab Content Panes -->
+        <div class="tab-content">
+          <!-- PANE 1: BRIEFING & ORDERS -->
+          <div class="tab-pane active" id="pane-briefing" role="tabpanel">
+            <div class="panel" id="scene-panel">
+              <div class="panel-header">
+                <span>Tactical Narrative &amp; Orders</span>
+                <span id="scene-location" style="color: var(--warning-yellow); font-size: 0.9rem;"></span>
+              </div>
+              <div id="narrative-text" style="font-size: 1rem; line-height: 1.6; color: var(--dust-tan); background: rgba(0, 0, 0, 0.4); padding: 16px; border-left: 4px solid var(--warning-yellow); margin-bottom: 16px; min-height: 70px;">
+                Awaiting tactical briefing...
+              </div>
+              <div id="choices-container" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Choice buttons are dynamically rendered here -->
+              </div>
+            </div>
           </div>
-          <div style="margin-bottom: 12px; display: flex; gap: 10px; flex-wrap: wrap;">
-            <button id="btn-test-stat" style="cursor: pointer; padding: 6px 12px; background: var(--jungle-mid); color: var(--dust-tan); border: 1px solid var(--radio-green); font-family: inherit;">+10 Intel (Test Event)</button>
-            <button id="btn-test-heat" style="cursor: pointer; padding: 6px 12px; background: var(--jungle-mid); color: var(--dust-tan); border: 1px solid var(--blood-red); font-family: inherit;">+15 Heat (Test Event)</button>
-            <button id="btn-test-casualty" style="cursor: pointer; padding: 6px 12px; background: var(--blood-red); color: #fff; border: 1px solid #fff; font-family: inherit;">Simulate Casualty (Test Event)</button>
+
+          <!-- PANE 2: FIELD RADIO (PRC-25) -->
+          <div class="tab-pane" id="pane-radio" role="tabpanel">
+            <div class="panel">
+              <div class="panel-header">
+                <span>AN/PRC-25 Field Radio Console</span>
+                <span id="radio-net-info" style="color: var(--terminal-green); font-size: 0.85rem;">46.50 MHz FM • Net Operational</span>
+              </div>
+              <div id="radio-panel-content">
+                <!-- Dynamically rendered by renderRadioUI() -->
+              </div>
+            </div>
           </div>
-          <ul id="event-log"></ul>
+
+          <!-- PANE 3: WAR JOURNAL -->
+          <div class="tab-pane" id="pane-journal" role="tabpanel">
+            <div class="panel">
+              <div class="panel-header">
+                <span>Operational War Journal &amp; Citations</span>
+                <span style="font-size: 0.8rem; color: var(--smoke-gray);">PST Standard Time (Directive 13)</span>
+              </div>
+              <div id="journal-panel-content">
+                <!-- Dynamically rendered by renderJournalUI() -->
+              </div>
+            </div>
+          </div>
+
+          <!-- PANE 4: AOR TACTICAL MAP -->
+          <div class="tab-pane" id="pane-map" role="tabpanel">
+            <div class="panel">
+              <div class="panel-header">
+                <span>AOR Tactical Map - Grid 881 &amp; Highway 9</span>
+                <span id="coordinate-readout" class="coordinate-readout">GRID: [50.0, 50.0]</span>
+              </div>
+              <div id="map-panel-content">
+                <!-- Dynamically rendered by renderTacticalMapUI() -->
+              </div>
+            </div>
+          </div>
+
+          <!-- PANE 5: SQUAD DOSSIER -->
+          <div class="tab-pane" id="pane-dossier" role="tabpanel">
+            <div class="panel">
+              <div class="panel-header">
+                <span>Squad Psych &amp; Service Dossier</span>
+                <span id="dossier-counter" style="color: var(--terminal-green); font-size: 0.85rem;">9 Personnel Assigned</span>
+              </div>
+              <div id="dossier-panel-content">
+                <!-- Dynamically rendered by renderDossierUI() -->
+              </div>
+            </div>
+          </div>
+
+          <!-- PANE 6: EVENT STREAM -->
+          <div class="tab-pane" id="pane-events" role="tabpanel">
+            <div class="panel">
+              <div class="panel-header">
+                <span>MessageBus Live Event Stream</span>
+                <span id="event-counter">0 events</span>
+              </div>
+              <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <button id="btn-test-stat" style="cursor: pointer; padding: 6px 12px; background: var(--jungle-mid); color: var(--dust-tan); border: 1px solid var(--radio-green); font-family: inherit; font-size: 0.8rem;">+10 Intel (Test Event)</button>
+                <button id="btn-test-heat" style="cursor: pointer; padding: 6px 12px; background: var(--jungle-mid); color: var(--dust-tan); border: 1px solid var(--blood-red); font-family: inherit; font-size: 0.8rem;">+15 Heat (Test Event)</button>
+                <button id="btn-test-stress" style="cursor: pointer; padding: 6px 12px; background: var(--jungle-mid); color: #ff9800; border: 1px solid #ff9800; font-family: inherit; font-size: 0.8rem;">+10 Stress (Test Event)</button>
+                <button id="btn-test-casualty" style="cursor: pointer; padding: 6px 12px; background: var(--blood-red); color: #fff; border: 1px solid #fff; font-family: inherit; font-size: 0.8rem;">Simulate Casualty (Test Event)</button>
+              </div>
+              <ul id="event-log"></ul>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -286,13 +328,83 @@ const saveManager = new SaveManager(messageBus, sceneManager, squadManager, ledg
   extractionSystem
 });
 
-// 4. Update UI helpers
+// 4. Update UI helpers & Live Panel Renderers
+let activeTab = 'briefing';
+let activeRadioChannel = RADIO_CHANNELS.HQ;
+let tunedFrequency = 46.5;
+let activeJournalFilter = 'ALL';
+let unreadJournalCount = 0;
+const mapLayers = {
+  enemy: true,
+  ambushes: true,
+  mortars: true,
+  minefields: true,
+  recon: true,
+  casualties: true
+};
+
+/**
+ * Switches the active military HUD tab.
+ * @param {string} tabName - 'briefing' | 'radio' | 'journal' | 'map' | 'dossier' | 'events'
+ */
+function switchTab(tabName) {
+  if (!isBrowser) return;
+  activeTab = tabName;
+
+  const tabBtns = document.querySelectorAll('.nav-tab');
+  tabBtns.forEach((btn) => {
+    const isTarget = btn.getAttribute('data-tab') === tabName;
+    btn.classList.toggle('active', isTarget);
+    btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+  });
+
+  const panes = document.querySelectorAll('.tab-pane');
+  panes.forEach((pane) => {
+    pane.classList.toggle('active', pane.id === `pane-${tabName}`);
+  });
+
+  if (tabName === 'journal') {
+    unreadJournalCount = 0;
+    const jBadge = document.getElementById('journal-tab-badge');
+    if (jBadge) {
+      jBadge.textContent = '0';
+      jBadge.classList.add('hidden');
+    }
+  }
+
+  if (tabName === 'radio') renderRadioUI();
+  else if (tabName === 'journal') renderJournalUI();
+  else if (tabName === 'map') renderTacticalMapUI();
+  else if (tabName === 'dossier') renderDossierUI();
+}
+
+function updateReputationUI() {
+  if (!isBrowser) return;
+  const repBadge = document.getElementById('reputation-status');
+  if (repBadge && reputationManager) {
+    const level = typeof reputationManager.getLevel === 'function' ? reputationManager.getLevel() : 'Neutral';
+    const score = reputationManager.score !== undefined ? reputationManager.score : 50;
+    repBadge.textContent = `REP: ${level.toUpperCase()} [${score}]`;
+    if (score >= 70) {
+      repBadge.style.borderColor = 'var(--terminal-green)';
+      repBadge.style.color = 'var(--terminal-green)';
+    } else if (score <= 30) {
+      repBadge.style.borderColor = 'var(--blood-red)';
+      repBadge.style.color = '#ff6b6b';
+    } else {
+      repBadge.style.borderColor = '#a78bfa';
+      repBadge.style.color = '#a78bfa';
+    }
+  }
+}
+
 function updateLedgerUI() {
   if (!isBrowser) return;
   const stats = ledger.getStats();
   const heatEl = document.getElementById('stat-heat');
   const intelEl = document.getElementById('stat-intel');
   const suppliesEl = document.getElementById('stat-supplies');
+  const stressEl = document.getElementById('stat-stress');
   const summaryEl = document.getElementById('ledger-summary');
   const intelBadgeEl = document.getElementById('intel-tier-badge');
 
@@ -301,8 +413,11 @@ function updateLedgerUI() {
   if (heatEl) heatEl.textContent = stats.heat;
   if (intelEl) intelEl.textContent = stats.intel;
   if (suppliesEl) suppliesEl.textContent = stats.supplies;
+  if (stressEl) stressEl.textContent = stats.stress !== undefined ? stats.stress : 0;
   if (intelBadgeEl) intelBadgeEl.textContent = `[${tier}]`;
-  if (summaryEl) summaryEl.textContent = `Heat: ${stats.heat} | Intel: ${stats.intel} (${tier}) | Supplies: ${stats.supplies}`;
+  if (summaryEl) summaryEl.textContent = `Heat: ${stats.heat} | Intel: ${stats.intel} [${tier}] | Supplies: ${stats.supplies} | Stress: ${stats.stress !== undefined ? stats.stress : 0}`;
+
+  updateReputationUI();
 }
 
 function updateWeatherUI() {
@@ -322,21 +437,40 @@ function updateWeatherUI() {
       weatherBadge.style.color = 'var(--warning-yellow)';
     }
   }
+  if (activeTab === 'radio') {
+    renderRadioUI();
+  }
 }
 
 function updateRadioUI() {
   if (!isBrowser) return;
   const radioBadge = document.getElementById('radio-status');
-  if (radioBadge && radioSystem) {
+  const tabBadge = document.getElementById('radio-tab-badge');
+  if (radioSystem) {
     const active = radioSystem.getActiveMessages();
     if (active.length > 0) {
-      radioBadge.style.display = 'inline-block';
-      radioBadge.textContent = `RADIO: ${active.length} URGENT CALL${active.length === 1 ? '' : 'S'}`;
-      radioBadge.style.borderColor = 'var(--blood-red)';
-      radioBadge.style.color = 'var(--blood-red)';
+      if (radioBadge) {
+        radioBadge.style.display = 'inline-block';
+        radioBadge.textContent = `RADIO: ${active.length} URGENT CALL${active.length === 1 ? '' : 'S'}`;
+        radioBadge.style.borderColor = 'var(--blood-red)';
+        radioBadge.style.color = 'var(--blood-red)';
+      }
+      if (tabBadge) {
+        tabBadge.textContent = active.length;
+        tabBadge.classList.remove('hidden');
+      }
     } else {
-      radioBadge.style.display = 'none';
+      if (radioBadge) {
+        radioBadge.style.display = 'none';
+      }
+      if (tabBadge) {
+        tabBadge.textContent = '0';
+        tabBadge.classList.add('hidden');
+      }
     }
+  }
+  if (activeTab === 'radio') {
+    renderRadioUI();
   }
 }
 
@@ -403,6 +537,8 @@ function updateExtractionUI() {
  */
 function renderExtractionConclusionUI(payload = {}) {
   if (!isBrowser) return;
+
+  switchTab('briefing');
 
   const narrativeEl = document.getElementById('narrative-text');
   const choicesEl = document.getElementById('choices-container');
@@ -521,44 +657,656 @@ function renderExtractionConclusionUI(payload = {}) {
   }
 }
 
-function updateSquadUI() {
+/**
+ * Renders the Field Radio (AN/PRC-25) Console panel.
+ */
+function renderRadioUI() {
   if (!isBrowser) return;
-  const rosterEl = document.getElementById('squad-roster');
-  const counterEl = document.getElementById('squad-counter');
-  if (!rosterEl) return;
+  const container = document.getElementById('radio-panel-content');
+  const netInfoEl = document.getElementById('radio-net-info');
+  const tabBadge = document.getElementById('radio-tab-badge');
+  const radioStatusBadge = document.getElementById('radio-status');
+
+  if (!container || !radioSystem) return;
+
+  const reception = radioSystem.getReceptionQuality();
+  const activeMessages = radioSystem.getActiveMessages();
+  const currentMeta = CHANNEL_METADATA[activeRadioChannel] || CHANNEL_METADATA[RADIO_CHANNELS.HQ];
+  const weather = weatherSystem ? weatherSystem.getCurrentWeather() : { name: 'Clear' };
+  const weatherMod = radioSystem.receptionModifier || 0;
+
+  if (tabBadge) {
+    if (activeMessages.length > 0) {
+      tabBadge.textContent = activeMessages.length;
+      tabBadge.classList.remove('hidden');
+    } else {
+      tabBadge.textContent = '0';
+      tabBadge.classList.add('hidden');
+    }
+  }
+
+  if (radioStatusBadge) {
+    if (activeMessages.length > 0) {
+      radioStatusBadge.style.display = 'inline-block';
+      radioStatusBadge.textContent = `RADIO: ${activeMessages.length} URGENT CALL${activeMessages.length === 1 ? '' : 'S'}`;
+      radioStatusBadge.style.borderColor = 'var(--blood-red)';
+      radioStatusBadge.style.color = 'var(--blood-red)';
+    } else {
+      radioStatusBadge.style.display = 'inline-block';
+      radioStatusBadge.textContent = `RADIO: ${currentMeta.callsign.toUpperCase()}`;
+      radioStatusBadge.style.borderColor = 'var(--radio-green)';
+      radioStatusBadge.style.color = 'var(--terminal-green)';
+    }
+  }
+
+  if (netInfoEl) {
+    netInfoEl.textContent = `${currentMeta.frequency} • ${currentMeta.callsign}`;
+  }
+
+  let meterColor = 'var(--terminal-green)';
+  if (reception < 40) meterColor = 'var(--blood-red)';
+  else if (reception < 70) meterColor = 'var(--warning-yellow)';
+
+  container.innerHTML = `
+    <div class="radio-console">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="font-size: 0.85rem; color: var(--warning-yellow); font-weight: bold; text-transform: uppercase;">
+          Tactical Frequencies (AN/PRC-25)
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button id="btn-dial-down" style="padding: 4px 10px; background: rgba(0,0,0,0.6); border: 1px solid var(--earth-brown); color: var(--dust-tan); font-family: inherit; font-size: 0.8rem; cursor: pointer;">◄ -0.5 MHz</button>
+          <span style="font-size: 0.85rem; color: var(--terminal-green); font-weight: bold; min-width: 85px; text-align: center;">${tunedFrequency.toFixed(2)} MHz</span>
+          <button id="btn-dial-up" style="padding: 4px 10px; background: rgba(0,0,0,0.6); border: 1px solid var(--earth-brown); color: var(--dust-tan); font-family: inherit; font-size: 0.8rem; cursor: pointer;">+0.5 MHz ►</button>
+        </div>
+      </div>
+
+      <div class="radio-channel-bar">
+        ${Object.values(RADIO_CHANNELS).map(ch => {
+          const m = CHANNEL_METADATA[ch];
+          const isAct = ch === activeRadioChannel;
+          return `<button class="channel-btn ${isAct ? 'active' : ''}" data-channel="${ch}">${m.callsign} [${ch}]</button>`;
+        }).join('')}
+      </div>
+
+      <div style="background: rgba(0, 0, 0, 0.4); border-left: 3px solid var(--radio-green); padding: 10px 14px; font-size: 0.85rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span style="color: var(--warning-yellow); font-weight: bold;">${currentMeta.name}</span>
+          <span style="color: var(--terminal-green); font-family: monospace;">${currentMeta.frequency}</span>
+        </div>
+        <div style="color: var(--smoke-gray); font-size: 0.8rem;">${currentMeta.description}</div>
+      </div>
+
+      <div class="reception-meter-box">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+          <span style="color: var(--dust-tan); font-weight: bold;">SIGNAL RECEPTION QUALITY:</span>
+          <span style="color: ${meterColor}; font-weight: bold;">${reception}% ${weatherMod < 0 ? `(${weather.name} ${weatherMod}%)` : '(Clear Signal)'}</span>
+        </div>
+        <div class="reception-meter-bar">
+          <div class="reception-meter-fill" style="width: ${reception}%; background: ${meterColor};"></div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--smoke-gray);">
+          Atmospheric condition: <strong>${weather.name}</strong> • ${reception >= 70 ? 'Optimal Voice Clarity' : (reception >= 40 ? 'Moderate Atmospheric Static' : 'Severe Electromagnetic Distortion')}
+        </div>
+      </div>
+
+      <div style="margin-top: 4px;">
+        <div style="font-size: 0.9rem; color: var(--warning-yellow); font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">
+          ⚡ Active Urgent Transmissions (${activeMessages.length})
+        </div>
+        ${activeMessages.length === 0 ? `
+          <div style="padding: 12px; background: rgba(0,0,0,0.3); color: var(--smoke-gray); font-style: italic; font-size: 0.85rem; border: 1px dashed var(--earth-brown);">
+            Net clear. No urgent incoming transmissions awaiting command resolution.
+          </div>
+        ` : activeMessages.map(msg => `
+          <div class="tx-card urgent">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+              <span style="color: #ff6b6b; font-weight: bold; text-transform: uppercase; font-size: 0.85rem;">[PRIORITY TRAFFIC] ${msg.callsign} (${msg.channel})</span>
+              <span style="font-size: 0.75rem; color: var(--warning-yellow);">Window: ${msg.remainingLifetime ?? 1} turn${msg.remainingLifetime === 1 ? '' : 's'} remaining</span>
+            </div>
+            <div style="color: var(--dust-tan); font-size: 0.9rem; line-height: 1.4; white-space: pre-wrap;">
+              "${msg.text}"
+            </div>
+            ${msg.choices && msg.choices.length > 0 ? `
+              <div class="tx-choices">
+                ${msg.choices.map((c, i) => `
+                  <button class="tx-choice-btn" data-msgid="${msg.id}" data-choicekey="${c.key || c.id}">
+                    <strong style="color: var(--warning-yellow);">[${i + 1}]</strong> ${c.text}
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="margin-top: 6px;">
+        <div style="font-size: 0.85rem; color: var(--smoke-gray); font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">
+          Radio Communication Log (${radioSystem.history.length})
+        </div>
+        <div style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+          ${radioSystem.history.length === 0 ? `
+            <div style="font-size: 0.8rem; color: var(--smoke-gray); font-style: italic;">No transmissions logged on net yet.</div>
+          ` : [...radioSystem.history].reverse().slice(0, 20).map(tx => `
+            <div style="padding: 8px 12px; background: rgba(0,0,0,0.4); border-left: 3px solid ${tx.direction === 'outgoing' ? 'var(--warning-yellow)' : 'var(--radio-green)'}; font-size: 0.8rem;">
+              <div style="display: flex; justify-content: space-between; color: var(--smoke-gray); font-size: 0.7rem; margin-bottom: 2px;">
+                <span>${tx.direction === 'outgoing' ? '▲ OUTGOING' : '▼ INCOMING'} [${tx.channel}] • ${tx.callsign || tx.sender}</span>
+                <span>${new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              </div>
+              <div style="color: var(--dust-tan);">${tx.text}</div>
+              ${tx.selectedDecision ? `
+                <div style="color: var(--terminal-green); font-size: 0.75rem; margin-top: 4px;">
+                  ✓ Resolution: ${tx.selectedDecision.text}
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.querySelectorAll('.channel-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeRadioChannel = btn.getAttribute('data-channel');
+      const meta = CHANNEL_METADATA[activeRadioChannel];
+      if (meta && meta.frequency) {
+        tunedFrequency = parseFloat(meta.frequency) || tunedFrequency;
+      }
+      renderRadioUI();
+    });
+  });
+
+  const btnDown = container.querySelector('#btn-dial-down');
+  const btnUp = container.querySelector('#btn-dial-up');
+  if (btnDown) {
+    btnDown.addEventListener('click', () => {
+      tunedFrequency = Math.max(30.0, tunedFrequency - 0.5);
+      renderRadioUI();
+    });
+  }
+  if (btnUp) {
+    btnUp.addEventListener('click', () => {
+      tunedFrequency = Math.min(76.0, tunedFrequency + 0.5);
+      renderRadioUI();
+    });
+  }
+
+  container.querySelectorAll('.tx-choice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const msgId = btn.getAttribute('data-msgid');
+      const choiceKey = btn.getAttribute('data-choicekey');
+      if (msgId && choiceKey && radioSystem) {
+        radioSystem.makeDecision(msgId, choiceKey);
+        renderRadioUI();
+        updateLedgerUI();
+      }
+    });
+  });
+}
+
+/**
+ * Renders the War Journal & Medal Citations reader panel.
+ */
+function renderJournalUI() {
+  if (!isBrowser) return;
+  const container = document.getElementById('journal-panel-content');
+  if (!container || !journal) return;
+
+  const entries = journal.getEntries ? journal.getEntries() : [];
+  const medals = heroicActionManager ? heroicActionManager.getMedals() : [];
+  const deadSoldiers = squadManager ? squadManager.getSoldiers().filter(s => !s.isAlive) : [];
+
+  let filtered = entries;
+  if (activeJournalFilter === 'COMBAT') {
+    filtered = entries.filter(e => e.category === 'COMBAT');
+  } else if (activeJournalFilter === 'CASUALTIES') {
+    filtered = entries.filter(e => e.category === 'CASUALTY');
+  } else if (activeJournalFilter === 'HEROISM & MEDALS') {
+    filtered = entries.filter(e => e.category === 'HEROISM');
+  } else if (activeJournalFilter === 'COMMAND') {
+    filtered = entries.filter(e => e.category === 'COMMAND');
+  } else if (activeJournalFilter === 'WEATHER') {
+    filtered = entries.filter(e => e.category === 'WEATHER');
+  }
+
+  container.innerHTML = `
+    <div class="journal-filters">
+      ${['ALL', 'COMBAT', 'CASUALTIES', 'HEROISM & MEDALS', 'COMMAND', 'WEATHER'].map(cat => `
+        <button class="journal-filter-btn ${activeJournalFilter === cat ? 'active' : ''}" data-cat="${cat}">
+          ${cat} ${cat === 'ALL' ? `(${entries.length})` : ''}
+        </button>
+      `).join('')}
+    </div>
+
+    ${(medals.length > 0 && (activeJournalFilter === 'ALL' || activeJournalFilter === 'HEROISM & MEDALS')) ? `
+      <div style="margin-bottom: 20px;">
+        <div style="font-family: 'Saira Condensed', sans-serif; font-size: 1.2rem; color: var(--warning-yellow); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">
+          🎖️ Official Military Decorations &amp; Citations (${medals.length})
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          ${medals.map(m => `
+            <div class="citation-box">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                <span class="citation-title">${m.medal || m.decoration || 'Military Decoration'}</span>
+                <span style="font-size: 0.75rem; color: var(--smoke-gray);">${m.timestamp || ''}</span>
+              </div>
+              <div style="color: var(--dust-tan); font-weight: bold; font-size: 0.95rem; margin-bottom: 6px;">
+                Conferred upon: <span style="color: #ffffff;">${m.soldierName || m.recipient || 'Soldier'}</span>
+                ${m.actionType ? `<span style="font-size: 0.8rem; color: var(--warning-yellow); margin-left: 8px;">[${m.actionType}]</span>` : ''}
+              </div>
+              <div style="color: var(--dust-tan); font-style: italic; font-size: 0.85rem; line-height: 1.6; background: rgba(0,0,0,0.3); padding: 10px; border-left: 3px solid var(--warning-yellow);">
+                "${m.citationText || m.citation || 'For conspicuous gallantry and intrepidity at the risk of his life.'}"
+              </div>
+              ${m.location ? `<div style="font-size: 0.75rem; color: var(--smoke-gray); margin-top: 6px;">Location: 📍 ${m.location}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    ${(deadSoldiers.length > 0 && (activeJournalFilter === 'ALL' || activeJournalFilter === 'CASUALTIES')) ? `
+      <div style="background: rgba(139, 46, 46, 0.15); border: 1px solid var(--blood-red); border-left: 5px solid var(--blood-red); padding: 14px; margin-bottom: 16px;">
+        <div style="font-family: 'Saira Condensed', sans-serif; font-size: 1.15rem; color: #ff6b6b; margin-bottom: 8px; text-transform: uppercase;">
+          ✝ In Memoriam: Fallen Squad Members (${deadSoldiers.length})
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; font-size: 0.85rem;">
+          ${deadSoldiers.map(s => `
+            <div style="padding: 6px 10px; background: rgba(0,0,0,0.4); border-left: 3px solid var(--blood-red);">
+              <span style="color: #ff8888; font-weight: bold;">${s.name}</span>
+              <span style="color: var(--smoke-gray);"> (${s.role})</span>
+              <div style="color: var(--smoke-gray); font-size: 0.75rem;">Status: ${s.status.toUpperCase()}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      ${filtered.length === 0 ? `
+        <div style="padding: 16px; background: rgba(0,0,0,0.3); color: var(--smoke-gray); font-style: italic; text-align: center; border: 1px dashed var(--earth-brown);">
+          No journal entries recorded for filter "${activeJournalFilter}".
+        </div>
+      ` : [...filtered].reverse().map(e => {
+        const catClass = (e.category || 'combat').toLowerCase();
+        return `
+          <div class="journal-card ${catClass}">
+            <div class="journal-meta">
+              <span style="color: var(--warning-yellow); font-weight: bold; text-transform: uppercase;">
+                [${e.category}] ${e.title || 'Mission Dispatch'}
+              </span>
+              <span>${e.timestamp || journal.formatTimestamp(new Date())}</span>
+            </div>
+            <div style="color: var(--dust-tan); font-size: 0.9rem; line-height: 1.5; margin: 4px 0;">
+              ${e.content}
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--smoke-gray); margin-top: 4px;">
+              <span>📍 ${e.location || journal.currentLocation}</span>
+              ${e.tags && e.tags.length > 0 ? `
+                <span style="display: flex; gap: 4px;">
+                  ${e.tags.map(t => `<span style="background: rgba(0,0,0,0.5); padding: 1px 6px; border-radius: 2px;">#${t}</span>`).join('')}
+                </span>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  container.querySelectorAll('.journal-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeJournalFilter = btn.getAttribute('data-cat');
+      renderJournalUI();
+    });
+  });
+}
+
+/**
+ * Renders the Advanced AOR Tactical Map panel with SVG overlay, breadcrumbs, and Intel-gated markers.
+ */
+function renderTacticalMapUI() {
+  if (!isBrowser) return;
+  const container = document.getElementById('map-panel-content');
+  const coordReadout = document.getElementById('coordinate-readout');
+  if (!container || !tacticalMapManager) return;
+
+  const curPos = tacticalMapManager.currentPosition || { x: 50, y: 50, sceneId: 'start' };
+  const intelTier = intelSystem ? intelSystem.getIntelTier() : 'LOW';
+  const visibleMarkers = tacticalMapManager.getMarkers ? tacticalMapManager.getMarkers() : [];
+  const breadcrumbs = tacticalMapManager.pathHistory || [];
+
+  if (coordReadout) {
+    coordReadout.textContent = `AOR GRID 881 • SQUAD POS: [X: ${curPos.x.toFixed(1)}%, Y: ${curPos.y.toFixed(1)}%] • ${intelTier} INTEL`;
+  }
+
+  const displayedMarkers = visibleMarkers.filter(m => {
+    if (m.type === 'enemy_location' && !mapLayers.enemy) return false;
+    if (m.type === 'ambush' && !mapLayers.ambushes) return false;
+    if (m.type === 'mortar_impact' && !mapLayers.mortars) return false;
+    if (m.type === 'minefield' && !mapLayers.minefields) return false;
+    if (m.type === 'recon_discovery' && !mapLayers.recon) return false;
+    if (m.type === 'casualty' && !mapLayers.casualties) return false;
+    return true;
+  });
+
+  const polylinePoints = breadcrumbs.map(b => `${b.x},${b.y}`).join(' ');
+
+  container.innerHTML = `
+    <div class="map-layer-bar">
+      <span style="color: var(--warning-yellow); font-weight: bold; margin-right: 6px;">LAYERS:</span>
+      <label class="map-layer-item">
+        <input type="checkbox" id="layer-enemy" ${mapLayers.enemy ? 'checked' : ''}>
+        <span>Enemy [HIGH]</span>
+      </label>
+      <label class="map-layer-item">
+        <input type="checkbox" id="layer-ambushes" ${mapLayers.ambushes ? 'checked' : ''}>
+        <span>Ambushes [MED]</span>
+      </label>
+      <label class="map-layer-item">
+        <input type="checkbox" id="layer-mortars" ${mapLayers.mortars ? 'checked' : ''}>
+        <span>Mortars [MED]</span>
+      </label>
+      <label class="map-layer-item">
+        <input type="checkbox" id="layer-minefields" ${mapLayers.minefields ? 'checked' : ''}>
+        <span>Minefields [HIGH]</span>
+      </label>
+      <label class="map-layer-item">
+        <input type="checkbox" id="layer-recon" ${mapLayers.recon ? 'checked' : ''}>
+        <span>Recon [MED]</span>
+      </label>
+      <label class="map-layer-item">
+        <input type="checkbox" id="layer-casualties" ${mapLayers.casualties ? 'checked' : ''}>
+        <span>Casualties [LOW]</span>
+      </label>
+    </div>
+
+    <div class="map-canvas-container" id="tactical-svg-container">
+      <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0;">
+        <defs>
+          <filter id="mapGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="0.6" />
+          </filter>
+        </defs>
+
+        <path d="M5,20 Q30,5 60,25 T95,15" fill="none" stroke="rgba(74,246,38,0.14)" stroke-width="0.5" />
+        <path d="M0,45 Q40,30 70,55 T100,40" fill="none" stroke="rgba(74,246,38,0.14)" stroke-width="0.5" />
+        <path d="M10,75 Q45,60 75,80 T100,70" fill="none" stroke="rgba(74,246,38,0.14)" stroke-width="0.5" />
+        <path d="M25,95 Q55,85 85,98" fill="none" stroke="rgba(74,246,38,0.14)" stroke-width="0.5" />
+
+        <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(74,246,38,0.15)" stroke-width="0.4" stroke-dasharray="1,2" />
+        <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(74,246,38,0.15)" stroke-width="0.4" stroke-dasharray="1,2" />
+        <circle cx="50" cy="50" r="25" fill="none" stroke="rgba(74,246,38,0.1)" stroke-width="0.4" />
+        <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(74,246,38,0.1)" stroke-width="0.4" />
+
+        ${breadcrumbs.length > 1 ? `
+          <polyline points="${polylinePoints}" fill="none" stroke="var(--terminal-green)" stroke-width="0.8" stroke-dasharray="1.5,1" filter="url(#mapGlow)" />
+        ` : ''}
+        ${breadcrumbs.map(b => `
+          <circle cx="${b.x}" cy="${b.y}" r="0.8" fill="var(--terminal-green)" opacity="0.7">
+            <title>Waypoint [${b.sceneId}] - ${b.timestamp}</title>
+          </circle>
+        `).join('')}
+
+        ${displayedMarkers.map(m => {
+          let markerColor = 'var(--terminal-green)';
+          let shape = 'circle';
+          if (m.type === 'enemy_location') { markerColor = 'var(--blood-red)'; shape = 'diamond'; }
+          else if (m.type === 'ambush') { markerColor = '#ff9800'; shape = 'triangle'; }
+          else if (m.type === 'mortar_impact') { markerColor = '#ff4444'; shape = 'cross'; }
+          else if (m.type === 'minefield') { markerColor = 'var(--warning-yellow)'; shape = 'square'; }
+          else if (m.type === 'casualty') { markerColor = '#ff2222'; shape = 'cross'; }
+          else if (m.type === 'recon_discovery') { markerColor = '#a78bfa'; shape = 'diamond'; }
+          else if (m.type === 'extraction_zone') { markerColor = '#4af626'; shape = 'circle'; }
+
+          return `
+            <g transform="translate(${m.x}, ${m.y})" style="cursor: pointer;">
+              <title>${m.label} [${m.type.toUpperCase()}]</title>
+              ${shape === 'diamond' ? `
+                <polygon points="0,-2.2 2.2,0 0,2.2 -2.2,0" fill="${markerColor}" stroke="#ffffff" stroke-width="0.3" />
+              ` : shape === 'triangle' ? `
+                <polygon points="0,-2.2 2.2,1.8 -2.2,1.8" fill="${markerColor}" stroke="#000" stroke-width="0.3" />
+              ` : shape === 'square' ? `
+                <rect x="-1.5" y="-1.5" width="3" height="3" fill="${markerColor}" stroke="#ffffff" stroke-width="0.3" />
+              ` : shape === 'cross' ? `
+                <line x1="-1.8" y1="0" x2="1.8" y2="0" stroke="${markerColor}" stroke-width="0.8" />
+                <line x1="0" y1="-1.8" x2="0" y2="1.8" stroke="${markerColor}" stroke-width="0.8" />
+              ` : `
+                <circle cx="0" cy="0" r="1.8" fill="${markerColor}" stroke="#ffffff" stroke-width="0.4" />
+              `}
+              <text x="3" y="1" fill="${markerColor}" font-size="2.2" font-family="'Courier Prime', monospace" font-weight="bold">${m.label}</text>
+            </g>
+          `;
+        }).join('')}
+
+        <g transform="translate(${curPos.x}, ${curPos.y})">
+          <circle cx="0" cy="0" r="3.5" fill="none" stroke="var(--warning-yellow)" stroke-width="0.5" opacity="0.6">
+            <animate attributeName="r" values="2;5;2" dur="2s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="0" cy="0" r="1.8" fill="var(--warning-yellow)" stroke="#ffffff" stroke-width="0.5" />
+          <text x="3" y="1.2" fill="var(--warning-yellow)" font-size="2.6" font-family="'Saira Condensed', sans-serif" font-weight="bold">SQUAD</text>
+        </g>
+      </svg>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; font-size: 0.75rem; color: var(--smoke-gray);">
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <span><strong style="color: var(--warning-yellow);">● SQUAD:</strong> Active Position</span>
+        <span><strong style="color: var(--terminal-green);">─ TRAIL:</strong> Patrol Breadcrumbs</span>
+        <span><strong style="color: var(--blood-red);">◆ ENEMY:</strong> Hostile Contacts</span>
+        <span><strong style="color: #ff9800;">▲ AMBUSH:</strong> Danger Zones</span>
+        <span><strong style="color: #ff2222;">✚ WIA/KIA:</strong> Casualty Sites</span>
+        <span><strong style="color: #4af626;">◎ LZ:</strong> Extraction Zone</span>
+      </div>
+      <div style="color: var(--terminal-green); font-family: monospace;">
+        Intel Tier: <strong>${intelTier}</strong>
+      </div>
+    </div>
+  `;
+
+  container.querySelectorAll('.map-layer-item input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const id = e.target.id;
+      if (id === 'layer-enemy') mapLayers.enemy = e.target.checked;
+      else if (id === 'layer-ambushes') mapLayers.ambushes = e.target.checked;
+      else if (id === 'layer-mortars') mapLayers.mortars = e.target.checked;
+      else if (id === 'layer-minefields') mapLayers.minefields = e.target.checked;
+      else if (id === 'layer-recon') mapLayers.recon = e.target.checked;
+      else if (id === 'layer-casualties') mapLayers.casualties = e.target.checked;
+      renderTacticalMapUI();
+    });
+  });
+}
+
+/**
+ * Renders the Squad Psych & Dossier panel covering 9 soldier cards with trust matrices and triage status.
+ */
+function renderDossierUI() {
+  if (!isBrowser) return;
+  const container = document.getElementById('dossier-panel-content');
+  const counterEl = document.getElementById('dossier-counter');
+  if (!container || !squadManager) return;
 
   const soldiers = squadManager.getSoldiers();
   const alive = squadManager.getAliveSoldiers();
-
-  if (counterEl) {
-    counterEl.textContent = `${alive.length}/${soldiers.length} Ready`;
+  const woundedSoldiers = woundedSoldierManager ? woundedSoldierManager.getWoundedSoldiers() : [];
+  const woundedMap = new Map();
+  if (woundedSoldierManager) {
+    for (const [wId, rec] of woundedSoldierManager.woundedSoldiers.entries()) {
+      woundedMap.set(wId, rec);
+    }
   }
 
-  rosterEl.innerHTML = `
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;">
-      ${soldiers.map(s => `
-        <div style="background: rgba(0,0,0,0.3); padding: 10px; border-left: 4px solid ${s.isAlive ? (s.status === 'wounded' ? 'var(--warning-yellow)' : 'var(--radio-green)') : 'var(--blood-red)'};">
-          <div style="font-weight: bold; color: ${s.isAlive ? (s.status === 'wounded' ? 'var(--warning-yellow)' : 'var(--dust-tan)') : 'var(--blood-red)'}; font-size: 0.95rem;">
-            ${s.name} ${s.isAlive ? (s.status === 'wounded' ? '(WOUNDED)' : '') : '(KIA)'}
-          </div>
-          <div style="font-size: 0.8rem; color: var(--smoke-gray); margin-top: 2px;">${s.role}</div>
-          <div style="font-size: 0.75rem; color: var(--warning-yellow); margin-top: 2px;">Traits: ${(s.getTraits ? s.getTraits() : [s.trait]).join(', ')}</div>
-          ${s.conditions && s.conditions.length > 0 ? `<div style="font-size: 0.75rem; color: #ff9800; margin-top: 2px;">Conditions: ${s.conditions.join(', ')}</div>` : ''}
-          ${s.wounds && s.wounds.length > 0 ? `<div style="font-size: 0.75rem; color: var(--blood-red); margin-top: 2px;">Wounds: ${s.wounds.join(', ')}</div>` : ''}
-          ${s.isAlive ? `
-          <div style="margin-top: 6px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--smoke-gray); margin-bottom: 2px;">
-              <span>Morale</span><span>${s.morale}%</span>
+  if (counterEl) {
+    counterEl.textContent = `${alive.length}/${soldiers.length} Ready • ${woundedSoldiers.length} Wounded • ${soldiers.length - alive.length} KIA`;
+  }
+
+  container.innerHTML = `
+    <div class="dossier-grid">
+      ${soldiers.map(s => {
+        const sId = String(s.id).toLowerCase();
+        const isDead = !s.isAlive;
+        const isWounded = s.status === 'wounded';
+        const woundedRec = woundedMap.get(sId);
+
+        let healthPct = 100;
+        let healthLabel = '100% HEALTHY';
+        if (isDead) {
+          healthPct = 0;
+          healthLabel = s.status === 'abandoned' ? '0% ABANDONED' : '0% KIA';
+        } else if (isWounded) {
+          const sev = woundedRec?.severity || 'moderate';
+          if (sev === 'light') { healthPct = 75; healthLabel = '75% (LIGHT WOUND)'; }
+          else if (sev === 'moderate') { healthPct = 50; healthLabel = '50% (MODERATE WOUND)'; }
+          else if (sev === 'severe') { healthPct = 25; healthLabel = '25% (SEVERE WOUND)'; }
+          else if (sev === 'critical') { healthPct = 10; healthLabel = '10% (CRITICAL TRAUMA)'; }
+        }
+
+        const relationships = relationshipManager ? relationshipManager.getRelationshipsFor(s.id) : [];
+
+        const condNames = conditionManager ? conditionManager.getConditionsFor(s.id) : (s.conditions || []);
+
+        let triageInfo = null;
+        if (isWounded) {
+          let carrierName = null;
+          if (woundedRec && woundedRec.carrierId) {
+            const carrier = squadManager.getSoldierById(woundedRec.carrierId);
+            carrierName = carrier ? carrier.name : woundedRec.carrierId;
+          }
+          triageInfo = {
+            severity: woundedRec?.severity || 'moderate',
+            bleedoutTimer: woundedRec?.bleedoutTimer ?? 3,
+            isStabilized: Boolean(woundedRec?.isStabilized),
+            carriedBy: carrierName
+          };
+        }
+
+        let carryingCasName = null;
+        if (woundedSoldierManager && woundedSoldierManager.carrierToWounded.has(sId)) {
+          const targetWoundedId = woundedSoldierManager.carrierToWounded.get(sId);
+          const targetWounded = squadManager.getSoldierById(targetWoundedId);
+          carryingCasName = targetWounded ? targetWounded.name : targetWoundedId;
+        }
+
+        const moraleColor = s.morale > 50 ? 'var(--radio-green)' : (s.morale > 25 ? 'var(--warning-yellow)' : 'var(--blood-red)');
+
+        return `
+          <div class="dossier-card ${isDead ? 'kia' : (isWounded ? 'wounded' : '')}">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 6px;">
+              <div>
+                <div style="font-size: 1.1rem; font-weight: bold; color: ${isDead ? '#ff6b6b' : (isWounded ? 'var(--warning-yellow)' : 'var(--dust-tan)')};">
+                  ${s.name} ${isDead ? '(KIA)' : (isWounded ? '(WIA)' : '')}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--smoke-gray);">${s.role}</div>
+              </div>
+              <span class="status-badge" style="
+                margin-top: 0;
+                font-size: 0.7rem;
+                padding: 2px 6px;
+                border-color: ${isDead ? 'var(--blood-red)' : (isWounded ? 'var(--warning-yellow)' : 'var(--radio-green)')};
+                color: ${isDead ? '#ff6b6b' : (isWounded ? 'var(--warning-yellow)' : 'var(--terminal-green)')};
+              ">
+                ${isDead ? (s.status.toUpperCase()) : (isWounded ? 'WOUNDED IN ACTION' : 'FIT FOR DUTY')}
+              </span>
             </div>
-            <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
-              <div style="height: 100%; width: ${s.morale}%; background: ${s.morale > 50 ? 'var(--radio-green)' : (s.morale > 25 ? 'var(--warning-yellow)' : 'var(--blood-red)')}; transition: width 0.3s ease, background-color 0.3s ease;"></div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.75rem;">
+              <div>
+                <div style="display: flex; justify-content: space-between; color: var(--smoke-gray); margin-bottom: 2px;">
+                  <span>VITALITY</span>
+                  <span style="font-weight: bold; color: ${healthPct > 50 ? 'var(--terminal-green)' : (healthPct > 20 ? 'var(--warning-yellow)' : 'var(--blood-red)')};">${healthLabel}</span>
+                </div>
+                <div style="height: 5px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                  <div style="height: 100%; width: ${healthPct}%; background: ${healthPct > 50 ? 'var(--terminal-green)' : (healthPct > 20 ? 'var(--warning-yellow)' : 'var(--blood-red)')}; transition: width 0.3s ease;"></div>
+                </div>
+              </div>
+
+              ${!isDead ? `
+                <div>
+                  <div style="display: flex; justify-content: space-between; color: var(--smoke-gray); margin-bottom: 2px;">
+                    <span>MORALE</span>
+                    <span style="font-weight: bold; color: ${moraleColor};">${s.morale}%</span>
+                  </div>
+                  <div style="height: 5px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                    <div style="height: 100%; width: ${s.morale}%; background: ${moraleColor}; transition: width 0.3s ease;"></div>
+                  </div>
+                </div>
+              ` : ''}
             </div>
+
+            <div style="font-size: 0.75rem; color: var(--dust-tan);">
+              <span style="color: var(--smoke-gray);">TRAITS:</span> 
+              <span style="color: var(--warning-yellow);">${(s.getTraits ? s.getTraits() : [s.trait]).join(', ')}</span>
+            </div>
+
+            <div style="font-size: 0.75rem;">
+              <div style="color: var(--smoke-gray); margin-bottom: 3px;">PSYCHOLOGICAL CONDITIONS:</div>
+              ${condNames.length === 0 ? `
+                <span style="color: var(--smoke-gray); font-style: italic; font-size: 0.7rem;">None (Mentally Composed)</span>
+              ` : condNames.map(cn => {
+                const def = PSYCHOLOGICAL_CONDITIONS[cn];
+                let condClass = 'negative';
+                if (def && def.category === 'psychological_positive') condClass = 'positive';
+                else if (def && def.category === 'situational_mixed') condClass = 'mixed';
+                return `<span class="condition-pill ${condClass}" title="${def?.description || ''}">${cn}</span>`;
+              }).join('')}
+            </div>
+
+            <div style="font-size: 0.75rem; background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 2px;">
+              <div style="color: var(--smoke-gray); margin-bottom: 4px; font-weight: bold;">TRUST MATRIX:</div>
+              ${relationships.length === 0 ? `
+                <div style="color: var(--smoke-gray); font-style: italic; font-size: 0.7rem;">No bond records logged.</div>
+              ` : `
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  ${relationships.slice(0, 3).map(rel => {
+                    const oId = rel.soldierId1 === sId ? rel.soldierId2 : rel.soldierId1;
+                    const oSoldier = squadManager.getSoldierById(oId);
+                    const oName = oSoldier ? oSoldier.name : oId;
+                    const isFriend = rel.trust >= 60 || rel.type === 'friendship' || rel.type === 'mentorship';
+                    const isRival = rel.trust <= 35 || rel.type === 'rivalry';
+                    return `
+                      <div class="trust-row">
+                        <span class="${isFriend ? 'trust-friend' : (isRival ? 'trust-rival' : 'trust-neutral')}">
+                          ${isFriend ? '★ ' : (isRival ? '⚔ ' : '• ')}${oName}
+                        </span>
+                        <span style="color: ${rel.trust >= 60 ? 'var(--terminal-green)' : (rel.trust <= 35 ? '#ff6b6b' : 'var(--smoke-gray)')};">
+                          ${rel.trust}% (${rel.type})
+                        </span>
+                      </div>
+                    `;
+                  }).join('')}
+                  ${relationships.length > 3 ? `<div style="color: var(--smoke-gray); font-size: 0.65rem; text-align: right;">+${relationships.length - 3} other comrade bonds</div>` : ''}
+                </div>
+              `}
+            </div>
+
+            ${isWounded && triageInfo ? `
+              <div style="background: rgba(139, 46, 46, 0.2); border-left: 3px solid var(--warning-yellow); padding: 6px 8px; font-size: 0.75rem;">
+                <div style="color: var(--warning-yellow); font-weight: bold;">TRIAGE STATUS: ${triageInfo.severity.toUpperCase()}</div>
+                <div style="color: var(--dust-tan); margin-top: 2px;">
+                  ${triageInfo.isStabilized ? '✓ Hemorrhage stabilized by Medic (Bleedout paused)' : (
+                    triageInfo.carriedBy ? `✓ Being carried by ${triageInfo.carriedBy} (Bleedout paused)` : `⚠ Critical bleedout timer: ${triageInfo.bleedoutTimer} turn${triageInfo.bleedoutTimer === 1 ? '' : 's'}`
+                  )}
+                </div>
+                ${s.wounds && s.wounds.length > 0 ? `<div style="color: #ff8888; font-size: 0.7rem; margin-top: 2px;">Wounds: ${s.wounds.join(', ')}</div>` : ''}
+              </div>
+            ` : (carryingCasName ? `
+              <div style="background: rgba(61, 139, 87, 0.15); border-left: 3px solid var(--terminal-green); padding: 6px 8px; font-size: 0.75rem;">
+                <span style="color: var(--terminal-green); font-weight: bold;">CARRIER PAIRING:</span>
+                <div style="color: var(--dust-tan);">Carrying wounded comrade <strong>${carryingCasName}</strong></div>
+                <div style="color: var(--smoke-gray); font-size: 0.7rem;">(-25% Squad Mobility Penalty • Rifle Slung)</div>
+              </div>
+            ` : '')}
           </div>
-          ` : ''}
-        </div>
-      `).join('')}
+        `;
+      }).join('')}
     </div>
   `;
+}
+
+function updateSquadUI() {
+  if (!isBrowser) return;
+  renderDossierUI();
 }
 
 function updateSaveStatusUI() {
@@ -600,6 +1348,20 @@ function updateSaveStatusUI() {
 }
 
 // 5. Subscribe to core events for DOM updates
+function onJournalUpdated() {
+  if (!isBrowser) return;
+  if (activeTab === 'journal') {
+    renderJournalUI();
+  } else {
+    unreadJournalCount++;
+    const jBadge = document.getElementById('journal-tab-badge');
+    if (jBadge) {
+      jBadge.textContent = String(unreadJournalCount);
+      jBadge.classList.remove('hidden');
+    }
+  }
+}
+
 messageBus.subscribe('GAME_BOOTED', (payload) => {
   if (!isBrowser) return;
   const statusEl = document.getElementById('system-status');
@@ -629,6 +1391,10 @@ messageBus.subscribe('GAME_LOADED', () => {
   updateRadioUI();
   updateEnemyUI();
   updateAmbushUI();
+  if (activeTab === 'map') renderTacticalMapUI();
+  if (activeTab === 'journal') renderJournalUI();
+  if (activeTab === 'dossier') renderDossierUI();
+  if (activeTab === 'radio') renderRadioUI();
 });
 
 messageBus.subscribe('SAVE_CLEARED', () => {
@@ -640,6 +1406,26 @@ messageBus.subscribe('CONDITION_GAINED', () => {
 });
 
 messageBus.subscribe('CONDITION_REMOVED', () => {
+  updateSquadUI();
+});
+
+messageBus.subscribe('RELATIONSHIP_UPDATED', () => {
+  updateSquadUI();
+});
+
+messageBus.subscribe('SOLDIER_WOUNDED', () => {
+  updateSquadUI();
+});
+
+messageBus.subscribe('WOUNDED_DECISION_MADE', () => {
+  updateSquadUI();
+});
+
+messageBus.subscribe('SOLDIER_EVACUATED', () => {
+  updateSquadUI();
+});
+
+messageBus.subscribe('SOLDIER_ABANDONED', () => {
   updateSquadUI();
 });
 
@@ -663,8 +1449,32 @@ messageBus.subscribe('RADIO_TIMEOUT', () => {
   updateRadioUI();
 });
 
+messageBus.subscribe('JOURNAL_ENTRY_ADDED', () => {
+  onJournalUpdated();
+});
+
+messageBus.subscribe('MEDAL_AWARDED', () => {
+  onJournalUpdated();
+  updateSquadUI();
+});
+
+messageBus.subscribe('MAP_UPDATED', () => {
+  if (activeTab === 'map') {
+    renderTacticalMapUI();
+  }
+});
+
+messageBus.subscribe('MAP_MARKER_ADDED', () => {
+  if (activeTab === 'map') {
+    renderTacticalMapUI();
+  }
+});
+
 messageBus.subscribe('INTEL_LEVEL_CHANGED', () => {
   updateLedgerUI();
+  if (activeTab === 'map') {
+    renderTacticalMapUI();
+  }
 });
 
 messageBus.subscribe('ENEMY_STRATEGY_CHANGED', () => {
@@ -833,6 +1643,10 @@ messageBus.subscribe('SCENE_RENDERED', (payload) => {
   }
 
   updateSaveStatusUI();
+  if (activeTab === 'map') renderTacticalMapUI();
+  if (activeTab === 'journal') renderJournalUI();
+  if (activeTab === 'dossier') renderDossierUI();
+  if (activeTab === 'radio') renderRadioUI();
 });
 
 messageBus.subscribe('CHOICE_RESOLUTION', (payload) => {
@@ -924,6 +1738,17 @@ messageBus.subscribe('CHOICE_RESOLUTION', (payload) => {
 
 // Setup button event listeners in browser
 if (isBrowser) {
+  // Tab Switching Navigation
+  const navTabs = document.querySelectorAll('.nav-tab');
+  navTabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-tab');
+      if (target) {
+        switchTab(target);
+      }
+    });
+  });
+
   // Test Event Buttons
   const btnStat = document.getElementById('btn-test-stat');
   if (btnStat) {
@@ -936,6 +1761,13 @@ if (isBrowser) {
   if (btnHeat) {
     btnHeat.addEventListener('click', () => {
       messageBus.publish('STAT_CHANGED', { stat: 'heat', delta: 15 });
+    });
+  }
+
+  const btnStress = document.getElementById('btn-test-stress');
+  if (btnStress) {
+    btnStress.addEventListener('click', () => {
+      messageBus.publish('STAT_CHANGED', { stat: 'stress', delta: 10 });
     });
   }
 
@@ -976,6 +1808,9 @@ if (isBrowser) {
       updateSquadUI();
       updateSaveStatusUI();
       updateExtractionUI();
+      renderJournalUI();
+      renderTacticalMapUI();
+      renderDossierUI();
     });
   }
 
@@ -1004,6 +1839,9 @@ updateRadioUI();
 updateEnemyUI();
 updateAmbushUI();
 updateExtractionUI();
+renderJournalUI();
+renderTacticalMapUI();
+renderDossierUI();
 
 // 7. Boot the game engine and initialize scene flow
 gameEngine.init();

@@ -1,6 +1,51 @@
 # Changelog: Squad Leader: Vietnam
 <!-- Copyright (c) 2026 Ed Grant, Email: ed@edgrant.com, Phone: (951) 610-8817 -->
 
+## [v3.1.0-hud-expansion] - 2026-09-05
+
+- **Timestamp**: 2026-09-05T03:24:00-07:00 (PST)
+- **Modified Files**:
+  - `v2/index.html`
+  - `v2/src/main.js`
+  - `CATALOG.md`
+  - `CHANGELOG.md`
+- **Summary**:
+  - Implemented the Advanced Interactive HUD & Dashboard Expansion for *Squad Leader: Vietnam V3*.
+  - **Military Tab Navigation**:
+    * Structured a 6-tab military command terminal: `[ BRIEFING & ORDERS ]`, `[ FIELD RADIO (PRC-25) ]`, `[ WAR JOURNAL ]`, `[ AOR TACTICAL MAP ]`, `[ SQUAD DOSSIER ]`, and `[ EVENT STREAM ]`.
+    * Implemented alert badge system (`.tab-badge`) displaying live counters for active urgent radio transmissions and unread war journal dispatches.
+    * Added responsive mobile/desktop CSS styling with active indicators, borders, and smooth state switching.
+  - **Field Radio (AN/PRC-25) Console**:
+    * Added tactical frequency tuner dial with interactive -0.5 MHz / +0.5 MHz stepper buttons.
+    * Added quick-switch preset channel selectors: HQ [30.0 MHz], Dustoff [42.5 MHz], Battery Alpha [55.0 MHz], Spooky [68.0 MHz], Recon [74.5 MHz].
+    * Added dynamic signal reception quality gauge calculated from atmospheric conditions (clear, overcast, monsoon, thunderstorm), radio modifiers, and static interference.
+    * Embedded priority incoming transmission cards displaying remaining turn windows and interactive decision buttons wired directly to `RadioSystem.makeDecision()`.
+    * Added reverse-chronological net communication log.
+  - **War Journal & Medals Reader**:
+    * Implemented category filters (`ALL`, `COMBAT`, `CASUALTIES`, `HEROISM & MEDALS`, `COMMAND`, `WEATHER`).
+    * Added official military decoration citation plaques with gold borders, recipient names, action tags, and Directive 13 PST timestamps.
+    * Added "In Memoriam" fallen squad honors section for KIA casualties.
+    * Added chronological war diary entry cards with location badges, hashtags, and category color accents.
+  - **AOR Tactical Map (Grid 881 & Highway 9)**:
+    * Implemented responsive SVG vector map canvas with coordinate readouts (`AOR GRID 881`), topographic elevation lines, and animated pulse squad position beacon.
+    * Added patrol breadcrumb trail rendering squad movement history with waypoints.
+    * Implemented dynamic Intel-gated layer toggles: Enemy [HIGH], Ambushes [MED], Mortars [MED], Minefields [HIGH], Recon [MED], and Casualties [LOW] filtering SVG markers in real time.
+  - **Squad Psych & Dossier (9-Soldier Grid)**:
+    * Rendered comprehensive military dossier cards for all 9 squad members (`miller`, `brady`, `duke`, `jenkins`, `baker`, `thompson`, `torres`, `kowalski`, `washington`).
+    * Displayed vitality and morale progress bars with color thresholds (green/yellow/red).
+    * Rendered psychological condition pills categorized by positive, negative, and mixed situational effects with tooltip explanations.
+    * Visualized trust matrix comrade bonds showing mentorships, friendships, rivalries, and trust percentages.
+    * Added carrier pairings and emergency triage status displaying wound severity, medic stabilization, and bleedout countdown timers.
+  - **Event Orchestration & Test Buttons**:
+    * Subscribed all new UI components to MessageBus events: `RADIO_MESSAGE_RECEIVED`, `RADIO_DECISION`, `RADIO_TIMEOUT`, `JOURNAL_ENTRY_ADDED`, `MEDAL_AWARDED`, `MAP_UPDATED`, `MAP_MARKER_ADDED`, `RELATIONSHIP_UPDATED`, `CONDITION_GAINED`, `CONDITION_REMOVED`, `SOLDIER_WOUNDED`, `WOUNDED_DECISION_MADE`, `SOLDIER_EVACUATED`, and `SOLDIER_ABANDONED`.
+    * Wired test event buttons for rapid simulation: `btn-test-stat` (+10 Intel), `btn-test-heat` (+15 Heat), `btn-test-stress` (+10 Stress), and `btn-test-casualty` (wounding/KIA).
+- **Reason**:
+  - Deliver deep tactile immersion and immediate situational awareness by connecting all 16 background architectural systems to an interactive, military-authentic visual command dashboard.
+- **Impact**:
+  - 100% test pass rate across all 134 automated unit/integration tests (Phase 1 through Phase 6) with 0 regressions. Clean execution in both Node.js and modern browsers.
+
+---
+
 ## [v3.0.0-phase6] - 2026-09-05
 
 - **Timestamp**: 2026-09-05T03:07:00-07:00 (PST)

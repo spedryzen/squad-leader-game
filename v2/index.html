@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Squad Leader: Vietnam (v2 OOP Architecture)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Saira+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Saira+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -23,7 +23,8 @@
             --terminal-green: #4af626;
             --smoke-gray: #888877;
             --warning-yellow: #e8d174;
-            --panel-bg: rgba(18, 28, 18, 0.85);
+            --panel-bg: rgba(18, 28, 18, 0.92);
+            --border-glow: rgba(74, 246, 38, 0.35);
         }
 
         body {
@@ -31,21 +32,21 @@
             background: linear-gradient(135deg, var(--jungle-dark) 0%, #201a15 100%);
             color: var(--dust-tan);
             min-height: 100vh;
-            padding: 24px;
+            padding: 16px;
             overflow-x: hidden;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
         }
 
         header {
             text-align: center;
-            padding: 24px;
+            padding: 20px;
             background: var(--panel-bg);
             border: 2px solid var(--earth-brown);
             border-left: 6px solid var(--blood-red);
@@ -54,41 +55,43 @@
 
         h1 {
             font-family: 'Saira Condensed', sans-serif;
-            font-size: 2.5rem;
+            font-size: 2.4rem;
             letter-spacing: 2px;
             text-transform: uppercase;
             color: var(--warning-yellow);
         }
 
         .subtitle {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--smoke-gray);
-            margin-top: 6px;
+            margin-top: 4px;
             text-transform: uppercase;
             letter-spacing: 1.5px;
         }
 
         .status-badge {
             display: inline-block;
-            margin-top: 12px;
-            padding: 4px 12px;
+            margin-top: 8px;
+            padding: 4px 10px;
             background: rgba(61, 139, 87, 0.2);
             border: 1px solid var(--radio-green);
             color: var(--terminal-green);
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             border-radius: 3px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
         }
 
         .panel {
             background: var(--panel-bg);
             border: 2px solid var(--earth-brown);
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            padding: 18px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
         }
 
         .panel-header {
             font-family: 'Saira Condensed', sans-serif;
-            font-size: 1.3rem;
+            font-size: 1.25rem;
             color: var(--warning-yellow);
             letter-spacing: 1px;
             text-transform: uppercase;
@@ -98,8 +101,414 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
+        /* -------------------------------------------------------------
+           MILITARY TAB NAVIGATION
+        ------------------------------------------------------------- */
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid var(--earth-brown);
+            border-bottom: 2px solid var(--radio-green);
+            padding: 6px 8px 0 8px;
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
+
+        .nav-tab {
+            flex-shrink: 0;
+            padding: 10px 14px;
+            background: var(--jungle-mid);
+            color: var(--dust-tan);
+            border: 1px solid rgba(74, 59, 44, 0.7);
+            border-bottom: none;
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+
+        .nav-tab:hover {
+            background: rgba(61, 139, 87, 0.35);
+            color: #ffffff;
+            border-color: var(--radio-green);
+        }
+
+        .nav-tab.active {
+            background: var(--panel-bg);
+            color: var(--warning-yellow);
+            border: 1px solid var(--radio-green);
+            border-bottom: 3px solid var(--warning-yellow);
+            font-weight: 700;
+            box-shadow: 0 -3px 8px rgba(74, 246, 38, 0.15);
+        }
+
+        .tab-badge {
+            display: inline-block;
+            background: var(--blood-red);
+            color: #ffffff;
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 1px 6px;
+            border-radius: 10px;
+            border: 1px solid #ff7b7b;
+            line-height: 1.2;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .tab-badge.hidden {
+            display: none;
+        }
+
+        .tab-content {
+            width: 100%;
+        }
+
+        .tab-pane {
+            display: none;
+            animation: paneFadeIn 0.2s ease-in-out;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes paneFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* -------------------------------------------------------------
+           FIELD RADIO (PRC-25) CONSOLE
+        ------------------------------------------------------------- */
+        .radio-console {
+            background: rgba(12, 18, 12, 0.95);
+            border: 2px solid var(--earth-brown);
+            border-left: 6px solid var(--radio-green);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .radio-channel-bar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .channel-btn {
+            padding: 7px 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--radio-green);
+            color: var(--dust-tan);
+            cursor: pointer;
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            transition: all 0.2s ease;
+        }
+
+        .channel-btn:hover {
+            background: rgba(61, 139, 87, 0.35);
+            color: #ffffff;
+        }
+
+        .channel-btn.active {
+            background: var(--radio-green);
+            color: #ffffff;
+            font-weight: bold;
+            border-color: var(--terminal-green);
+            box-shadow: 0 0 8px rgba(74, 246, 38, 0.4);
+        }
+
+        .reception-meter-box {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--earth-brown);
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .reception-meter-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .reception-meter-fill {
+            height: 100%;
+            width: 100%;
+            background: var(--terminal-green);
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .tx-card {
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid var(--earth-brown);
+            border-left: 4px solid var(--radio-green);
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .tx-card.urgent {
+            border-left-color: var(--blood-red);
+            background: rgba(139, 46, 46, 0.15);
+            box-shadow: 0 0 10px rgba(139, 46, 46, 0.25);
+        }
+
+        .tx-choice-btn {
+            padding: 8px 12px;
+            background: var(--jungle-mid);
+            border: 1px solid var(--warning-yellow);
+            color: var(--dust-tan);
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .tx-choice-btn:hover {
+            background: var(--warning-yellow);
+            color: #000000;
+            font-weight: bold;
+        }
+
+        /* -------------------------------------------------------------
+           WAR JOURNAL & MEDAL CITATIONS
+        ------------------------------------------------------------- */
+        .journal-filters {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .journal-filter-btn {
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--earth-brown);
+            color: var(--smoke-gray);
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            transition: all 0.2s ease;
+        }
+
+        .journal-filter-btn:hover {
+            color: var(--dust-tan);
+            border-color: var(--warning-yellow);
+        }
+
+        .journal-filter-btn.active {
+            background: var(--earth-brown);
+            color: var(--warning-yellow);
+            border-color: var(--warning-yellow);
+            font-weight: bold;
+        }
+
+        .journal-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--earth-brown);
+            border-left: 4px solid var(--radio-green);
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .journal-card.combat { border-left-color: var(--blood-red); }
+        .journal-card.casualty { border-left-color: #ff4444; }
+        .journal-card.heroism { border-left-color: var(--warning-yellow); }
+        .journal-card.weather { border-left-color: #5bc0de; }
+        .journal-card.command { border-left-color: #9cb0c2; }
+        .journal-card.intel { border-left-color: #a78bfa; }
+
+        .journal-meta {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--smoke-gray);
+        }
+
+        .citation-box {
+            background: rgba(232, 209, 116, 0.07);
+            border: 2px solid var(--warning-yellow);
+            border-left: 6px solid var(--warning-yellow);
+            padding: 16px;
+            margin-bottom: 14px;
+            position: relative;
+        }
+
+        .citation-title {
+            font-family: 'Saira Condensed', sans-serif;
+            font-size: 1.15rem;
+            color: var(--warning-yellow);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        /* -------------------------------------------------------------
+           ADVANCED TACTICAL MAP
+        ------------------------------------------------------------- */
+        .map-layer-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--earth-brown);
+            margin-bottom: 12px;
+            font-size: 0.8rem;
+        }
+
+        .map-layer-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--dust-tan);
+            cursor: pointer;
+            text-transform: uppercase;
+            user-select: none;
+        }
+
+        .map-layer-item input[type="checkbox"] {
+            accent-color: var(--radio-green);
+            cursor: pointer;
+        }
+
+        .map-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 380px;
+            background: 
+              repeating-linear-gradient(rgba(74,246,38,0.08) 0, rgba(74,246,38,0.08) 1px, transparent 1px, transparent 25px),
+              repeating-linear-gradient(90deg, rgba(74,246,38,0.08) 0, rgba(74,246,38,0.08) 1px, transparent 1px, transparent 25px),
+              radial-gradient(ellipse at center, var(--jungle-mid) 0%, var(--jungle-dark) 100%);
+            border: 2px solid var(--radio-green);
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+        }
+
+        .coordinate-readout {
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.85rem;
+            color: var(--terminal-green);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 4px 10px;
+            border: 1px solid var(--radio-green);
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        /* -------------------------------------------------------------
+           SQUAD PSYCH & DOSSIER
+        ------------------------------------------------------------- */
+        .dossier-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 14px;
+        }
+
+        .dossier-card {
+            background: rgba(14, 22, 14, 0.88);
+            border: 1px solid var(--earth-brown);
+            border-left: 5px solid var(--radio-green);
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+        }
+
+        .dossier-card.wounded {
+            border-left-color: var(--warning-yellow);
+        }
+
+        .dossier-card.kia {
+            border-left-color: var(--blood-red);
+            opacity: 0.7;
+        }
+
+        .dossier-card.abandoned {
+            border-left-color: #666666;
+            opacity: 0.6;
+        }
+
+        .condition-pill {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 2px 3px 2px 0;
+            line-height: 1.3;
+        }
+
+        .condition-pill.negative {
+            background: rgba(255, 77, 77, 0.18);
+            border: 1px solid #ff4d4d;
+            color: #ff8888;
+        }
+
+        .condition-pill.positive {
+            background: rgba(74, 246, 38, 0.18);
+            border: 1px solid var(--terminal-green);
+            color: var(--terminal-green);
+        }
+
+        .condition-pill.mixed {
+            background: rgba(232, 209, 116, 0.18);
+            border: 1px solid var(--warning-yellow);
+            color: var(--warning-yellow);
+        }
+
+        .trust-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--dust-tan);
+            padding: 3px 0;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.08);
+        }
+
+        .trust-friend { color: var(--terminal-green); font-weight: bold; }
+        .trust-rival { color: #ff6b6b; font-weight: bold; }
+        .trust-neutral { color: var(--smoke-gray); }
+
+        /* -------------------------------------------------------------
+           EVENT STREAM & UTILITIES
+        ------------------------------------------------------------- */
         #event-log {
             list-style: none;
             max-height: 400px;
@@ -145,6 +554,6 @@
 </head>
 <body>
     <div id="app"></div>
-    <script type="module" src="./src/main.js?v=8"></script>
+    <script type="module" src="./src/main.js?v=9"></script>
 </body>
 </html>
